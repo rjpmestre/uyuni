@@ -1,0 +1,12 @@
+on:
+  workflow_run:
+    workflows: ["Java checkstyle"]
+    types:
+      - completed
+
+jobs:
+  notify-on-checkstyle-completion:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify on Checkstyle Completion
+        run: echo "Java checkstyle workflow completed successfully."

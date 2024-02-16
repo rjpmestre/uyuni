@@ -2,8 +2,9 @@ name: Sonarcloud scan
 
 on:
   workflow_run:
-    workflows: [Java checkstyle]
-    types: [completed]
+    workflows: ["Java checkstyle"]
+    types:
+      - completed
 
 jobs:
 
@@ -12,7 +13,6 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request' }}
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
