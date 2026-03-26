@@ -149,7 +149,7 @@ public class UserFactory extends HibernateFactory {
      */
     public static Address createAddress() {
         AddressImpl addr = new AddressImpl();
-        addr.setPrivType(Address.TYPE_MARKETING);
+        addr.setType(AddressType.ADDRESS_TYPE_MARKETING);
         return addr;
     }
 

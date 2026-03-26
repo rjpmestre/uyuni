@@ -363,6 +363,7 @@ import com.redhat.rhn.domain.token.Token;
 import com.redhat.rhn.domain.token.TokenChannelAppStream;
 import com.redhat.rhn.domain.token.TokenPackage;
 import com.redhat.rhn.domain.user.AddressImpl;
+import com.redhat.rhn.domain.user.AddressTypeConverter;
 import com.redhat.rhn.domain.user.Pane;
 import com.redhat.rhn.domain.user.RhnTimeZone;
 import com.redhat.rhn.domain.user.State;
@@ -422,6 +423,7 @@ public class AnnotationRegistry {
             ActivationScheduleDeployAction.class,
             ActivationSchedulePackageDeployAction.class,
             AddressImpl.class,
+            AddressTypeConverter.class,
             AnsiblePath.class,
             AppletUseSatelliteAction.class,
             AppStreamAction.class,
