@@ -325,7 +325,7 @@ msgstr "Atestação"
 
 #: ../html/src/components/coco-attestation/CoCoAttestationTable.tsx:53
 msgid "Attestation #{identifier} run on {date} at {time}"
-msgstr "Atestação #{identifier} executada em {date} às {time}"
+msgstr "Atestação n.º{identifier} executada em {date} às {time}"
 
 #: ../html/src/components/coco-attestation/CoCoAttestationTable.tsx:66
 #: ../html/src/components/coco-attestation/CoCoReport.tsx:49
@@ -464,7 +464,7 @@ msgstr "Atestado em:"
 
 #: ../html/src/components/coco-attestation/CoCoResult.tsx:66
 msgid "Process Output"
-msgstr "Saída do Processo"
+msgstr "Resultados do Processo"
 
 #: ../html/src/components/coco-attestation/CoCoSettingsForm.tsx:80
 msgid "Enable attestation"
@@ -476,7 +476,7 @@ msgstr "Execuções"
 
 #: ../html/src/components/coco-attestation/CoCoSettingsForm.tsx:109
 msgid "Peform attestation during the boot process"
-msgstr "Executar atestação durante o processo de arranque"
+msgstr "Executar atestação durante o arranque"
 
 #: ../html/src/components/coco-attestation/CoCoSettingsForm.tsx:121
 msgid "Peform attestation on a schedule"
@@ -1032,7 +1032,7 @@ msgstr "Este slave está atualmente desativado e não pode ser selecionado para 
 
 #: ../html/src/components/hub/MigrateSlavesForm.tsx:268
 msgid "Check to migrate this server to a peripheral"
-msgstr "Selecione para migrar este servidor para periférico"
+msgstr "Selecione para migrar este servidor para um periférico"
 
 #: ../html/src/components/hub/MigrateSlavesForm.tsx:287
 msgid "Not defined"
@@ -1089,7 +1089,7 @@ msgstr "Este servidor tem uma CA raiz diferente."
 
 #: ../html/src/components/hub/MigrateSlavesForm.tsx:337
 msgid "Ensure the certificate you are providing for {fqdn} is correct before proceeding. A wrong value will prevent the connection with the hub."
-msgstr "Certifique-se de que o certificado que está a fornecer para {fqdn} está correto antes de prosseguir. Um valor errado impedirá a conexão com o hub."
+msgstr "Certifique-se de que o certificado que está a fornecer para {fqdn} está correto antes de prosseguir. Um valor incorreto impedirá a ligação ao hub."
 
 #: ../html/src/components/hub/MigrateSlavesForm.tsx:342
 msgid "Are you sure you want to remove the current Root Certificate Authority for {fqdn}?"
@@ -1151,7 +1151,7 @@ msgstr "FQDN do Servidor Periférico"
 
 #: ../html/src/components/hub/RegisterPeripheralForm.tsx:158
 msgid "The unique, DNS-resolvable fully-qualified domain name of the server to register."
-msgstr "O nome de domínio totalmente qualificado único e resolúvel por DNS do servidor a registar."
+msgstr "O nome de domínio totalmente qualificado (FQDN) único e resolúvel por DNS do servidor a registar."
 
 #: ../html/src/components/hub/RegisterPeripheralForm.tsx:168
 #: ../html/src/components/hub/RegisterPeripheralForm.tsx:169
@@ -1172,7 +1172,7 @@ msgstr "Utilizador/Password de Administrador"
 
 #: ../html/src/components/hub/RegisterPeripheralForm.tsx:185
 msgid "The token that grant access to the remote server to establish the connection."
-msgstr "O token que concede acesso ao servidor remoto para estabelecer a conexão."
+msgstr "O token que concede acesso ao servidor remoto para estabelecer a ligação."
 
 #: ../html/src/components/hub/RegisterPeripheralForm.tsx:196
 #: ../html/src/manager/admin/access-control/access-group-review.tsx:162
@@ -1199,7 +1199,7 @@ msgstr "Certificado CA raiz"
 
 #: ../html/src/components/hub/RegisterPeripheralForm.tsx:218
 msgid "The Root certificate authority of the remote server, that must be trusted to establish a secure connection."
-msgstr "A autoridade de certificação Raiz do servidor remoto, que deve ser confiável para estabelecer uma conexão segura."
+msgstr "A Autoridade de Certificação Raiz do servidor remoto, que deve ser confiável para estabelecer uma ligação segura."
 
 #: ../html/src/components/hub/RegisterPeripheralForm.tsx:227
 #: ../html/src/components/large-text-attachment.tsx:155
@@ -1267,19 +1267,19 @@ msgstr "Este periférico está atualmente a usar a Autoridade de Certificação 
 
 #: ../html/src/components/hub/ServerDetailsForm.tsx:29
 msgid "Ensure the certificate you are providing is correct before proceeding. A wrong value will break the connection with the hub."
-msgstr "Certifique-se de que o certificado que está a fornecer está correto antes de prosseguir. Um valor errado quebrará a conexão com o hub."
+msgstr "Certifique-se de que o certificado que está a fornecer está correto antes de prosseguir. Um valor incorreto irá interromper a ligação com o hub."
 
 #: ../html/src/components/hub/ServerDetailsForm.tsx:32
 msgid "Ensure the certificate you are providing is correct before proceeding. A wrong value will break the connection with the peripheral."
-msgstr "Certifique-se de que o certificado que está a fornecer está correto antes de prosseguir. Um valor errado quebrará a conexão com o periférico."
+msgstr "Certifique-se de que o certificado que está a fornecer está correto antes de prosseguir. Um valor incorreto irá interromper a ligação com o periférico."
 
 #: ../html/src/components/hub/ServerDetailsForm.tsx:37
 msgid "Are you sure you want to delete the current Root Certificate Authority? This change may break the connection with the hub."
-msgstr "Tem a certeza que quer eliminar a Autoridade de Certificação Raiz atual? Esta alteração pode quebrar a conexão com o hub."
+msgstr "Tem a certeza que quer eliminar a Autoridade de Certificação Raiz atual? Esta alteração poderá interromper a ligação com o hub."
 
 #: ../html/src/components/hub/ServerDetailsForm.tsx:40
 msgid "Are you sure you want to delete the current Root Certificate Authority? This change may break the connection with the peripheral."
-msgstr "Tem a certeza que quer eliminar a Autoridade de Certificação Raiz atual? Esta alteração pode quebrar a conexão com o periférico."
+msgstr "Tem a certeza que quer eliminar a Autoridade de Certificação Raiz atual? Esta alteração poderá interromper a ligação com o periférico."
 
 #: ../html/src/components/hub/ServerDetailsForm.tsx:79
 msgid "Registration date:"
@@ -1971,7 +1971,7 @@ msgstr "Antes de Migrar para SLES 16 — Assegure-se que"
 
 #: ../html/src/components/product-migration/MigrationConfirmScheduleForm.tsx:110
 msgid "System is fully up to date"
-msgstr "O sistema está completamente atualizado"
+msgstr "O sistema está totalmente atualizado"
 
 #: ../html/src/components/product-migration/MigrationConfirmScheduleForm.tsx:111
 msgid "Sufficient disk space is available"
@@ -1979,11 +1979,11 @@ msgstr "Existe espaço em disco suficiente disponível"
 
 #: ../html/src/components/product-migration/MigrationConfirmScheduleForm.tsx:114
 msgid "Ensure SSH key-based access is available for at least one user. If root login is required, create /etc/ssh/sshd_config.d/50-permit-root-login.conf with: PermitRootLogin yes"
-msgstr "Certifique-se de que o acesso baseado em chave SSH está disponível para pelo menos um utilizador. Se o login root for necessário, crie /etc/ssh/sshd_config.d/50-permit-root-login.conf com: PermitRootLogin yes"
+msgstr "Certifique-se de que existe acesso via chave SSH disponível para, pelo menos, um utilizador. Se for necessário permitir o acesso root, crie /etc/ssh/sshd_config.d/50-permit-root-login.conf com: PermitRootLogin yes"
 
 #: ../html/src/components/product-migration/MigrationConfirmScheduleForm.tsx:117
 msgid "KVM guests are shut down (if applicable)"
-msgstr "Os guests KVM estão encerrados (se aplicável)"
+msgstr "As máquinas virtuais KVM estão desligadas (se aplicável)"
 
 #: ../html/src/components/product-migration/MigrationConfirmScheduleForm.tsx:118
 msgid "Network configuration will be migrated from wicked to NetworkManager"
@@ -1995,7 +1995,7 @@ msgstr "Os perfis AppArmor serão migrados para SELinux"
 
 #: ../html/src/components/product-migration/MigrationConfirmScheduleForm.tsx:127
 msgid "In order to detect any possible problems it is recommended to always do a Dry Run before scheduling the actual Product Migration."
-msgstr "Para detetar quaisquer problemas possíveis é recomendado fazer sempre uma Execução de Teste antes de agendar a Migração de Produto real."
+msgstr "Para detetar possíveis problemas, recomenda-se fazer sempre uma execução de teste (Dry Run) antes de agendar a migração efetiva do produto."
 
 #: ../html/src/components/product-migration/MigrationConfirmScheduleForm.tsx:138
 msgid "Back to channel selection"
@@ -2702,19 +2702,19 @@ msgstr " Tomcat e Taskomatic é necessário para que as alterações de configur
 
 #: ../html/src/manager/admin/create-payg/create-payg.tsx:37
 msgid "Add new PAYG ssh connection data"
-msgstr "Adicionar novos dados de conexão ssh PAYG"
+msgstr "Adicionar novos dados da ligação ssh PAYG"
 
 #: ../html/src/manager/admin/create-payg/create-payg.tsx:43
 msgid "PAYG connection Description"
-msgstr "Descrição da conexão PAYG"
+msgstr "Descrição da ligação PAYG"
 
 #: ../html/src/manager/admin/create-payg/create-payg.tsx:48
 msgid "Instance SSH connection data"
-msgstr "Dados de conexão SSH da instância"
+msgstr "Dados da ligação SSH da instância"
 
 #: ../html/src/manager/admin/create-payg/create-payg.tsx:51
 msgid "Bastion SSH connection data"
-msgstr "Dados de conexão SSH do bastion"
+msgstr "Dados da ligação SSH do bastion"
 
 #: ../html/src/manager/admin/create-payg/create-payg.tsx:59
 msgid "Add PAYG ssh data"
@@ -2834,7 +2834,7 @@ msgstr "nunca"
 
 #: ../html/src/manager/admin/list-payg/list-payg.tsx:112
 msgid "Add PAYG Connection"
-msgstr "Adicionar Conexão PAYG"
+msgstr "Adicionar Ligação PAYG"
 
 #: ../html/src/manager/admin/password-policy/password-policy.tsx:20
 msgid "Server Configuration - Password Policy"
@@ -2928,11 +2928,11 @@ msgstr "Última Atualização de Estado"
 
 #: ../html/src/manager/admin/payg-shared/sshData/payg-ssh-data-edit.tsx:65
 msgid "Editing ssh connection data.."
-msgstr "A editar dados de conexão ssh.."
+msgstr "A editar dados de ligação ssh.."
 
 #: ../html/src/manager/admin/payg-shared/sshData/payg-ssh-data-form.tsx:44
 msgid "When editing the SSH connection all needed credentials must be re-provided."
-msgstr "Ao editar a conexão SSH todas as credenciais necessárias devem ser fornecidas novamente."
+msgstr "Ao editar a ligação SSH todas as credenciais necessárias devem ser fornecidas novamente."
 
 #: ../html/src/manager/admin/payg-shared/sshData/payg-ssh-data-form.tsx:60
 #: ../html/src/manager/admin/payg-shared/sshData/payg-ssh-data-view.tsx:17
@@ -2969,11 +2969,11 @@ msgstr "Hostname da Instância: {host}"
 
 #: ../html/src/manager/admin/payg/payg.tsx:80
 msgid "Delete PAYG Connection"
-msgstr "Eliminar Conexão PAYG"
+msgstr "Eliminar Ligação PAYG"
 
 #: ../html/src/manager/admin/payg/payg.tsx:83
 msgid "Are you sure you want to delete connection"
-msgstr "Tem a certeza que quer eliminar a conexão"
+msgstr "Tem a certeza que quer eliminar a ligação"
 
 #: ../html/src/manager/admin/setup/products/products-scc-dialog.tsx:153
 msgid "Refresh the product catalog from SUSE Customer Center"
@@ -6616,7 +6616,7 @@ msgstr "Mensagem eliminada com sucesso"
 #: ../html/src/manager/salt/cmd/remote-commands.tsx:344
 #: ../html/src/manager/shared/websocket/useWebSocket.ts:29
 msgid "Websocket connection closed. Refresh the page to try again."
-msgstr "Conexão websocket fechada. Atualize a página para tentar novamente."
+msgstr "Ligação websocket fechada. Atualize a página para tentar novamente."
 
 #: ../html/src/manager/notifications/notifications.tsx:59
 #: ../html/src/manager/salt/cmd/remote-commands.tsx:365
