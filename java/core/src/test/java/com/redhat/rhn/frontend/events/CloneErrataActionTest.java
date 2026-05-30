@@ -42,7 +42,7 @@ import java.util.LinkedList;
 import java.util.Map;
 
 /**
- * Tests {@link CloneErrataAction}.
+ * Tests {@link SyncFromSourceErrataAction}.
  */
 public class CloneErrataActionTest extends BaseTestCaseWithUser {
 

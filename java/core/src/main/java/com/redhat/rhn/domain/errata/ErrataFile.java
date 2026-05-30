@@ -69,7 +69,7 @@ public class ErrataFile extends BaseDomainHelper {
             name = "rhnErrataFileChannel",
             joinColumns = @JoinColumn(name = "errata_file_id"),
             inverseJoinColumns = @JoinColumn(name = "channel_id"))
-    private Set<Channel> channels;
+    private Set<Channel> channels = new HashSet<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -77,7 +77,7 @@ public class ErrataFile extends BaseDomainHelper {
             joinColumns = @JoinColumn(name = "errata_file_id"),
             inverseJoinColumns = @JoinColumn(name = "package_id"))
     @OrderBy("id asc")
-    private Set<Package> packages;
+    private Set<Package> packages = new HashSet<>();
 
     /**
      * @return Returns the channels.
