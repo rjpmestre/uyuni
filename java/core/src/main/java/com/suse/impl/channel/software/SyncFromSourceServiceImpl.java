@@ -28,7 +28,6 @@ import com.redhat.rhn.manager.errata.cache.ErrataCacheManager;
 
 import com.suse.persistence.dao.ErrataRepository;
 import com.suse.spec.channel.software.SyncFromSourceService;
-import com.suse.spec.channel.software.dto.SyncOperation;
 import com.suse.spec.channel.software.dto.SyncRequest;
 import com.suse.spec.channel.software.dto.SyncResponse;
 
@@ -84,12 +83,16 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
             return new SyncResponse(erratas, packages);
         }
 
+        // Actual sync business logic
+        SyncFromSourceContext syncFromSourceContext = new SyncFromSourceContext();
+
         if (request.operation().includesErratas()) {
-            erratas = syncErratas(user, sourceChannel, targetChannel, request);
+            syncErratas(user, sourceChannel, targetChannel, request, syncFromSourceContext);
+            erratas = syncFromSourceContext.getErratasToSync();
         }
 
         if (request.operation().includesPackages()) {
-            packages = syncPackages(sourceChannel, targetChannel, erratas, request);
+            packages = syncPackages(sourceChannel, targetChannel, request, syncFromSourceContext);
         }
 
         return new SyncResponse(erratas, packages);
@@ -97,34 +100,36 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
 
     /**
      * Sync erratas from source to target channel.
+     * Returns updated context containing both matching erratas and the subset that were actually synced.
      */
-    private Set<Errata> syncErratas(
-            User user, Channel sourceChannel, Channel targetChannel, SyncRequest request
-    ) {
+    private void syncErratas(
+            User user, Channel sourceChannel, Channel targetChannel, SyncRequest request,
+            SyncFromSourceContext syncFromSourceContext) {
         LOG.debug("Syncing erratas from {} to {}", sourceChannel.getLabel(), targetChannel.getLabel());
 
         // Lookup erratas from source channel
-        Set<Errata> erratasFromSource = ErrataRepository.lookupErrataByChannel(
+        Set<Errata> matchingErratas = ErrataRepository.lookupErrataByChannel(
                 sourceChannel,
                 request.criteria().advisoryNames(),
                 request.criteria().startDate(),
                 request.criteria().endDate()
         );
 
-//        Set<Errata> erratasToSync = filterErratas(user, sourceChannel, criteria);
-
         // Filter out erratas already in target
         Set<Errata> erratasToSync =
-                ErrataManager.filterErrataRequiringMerge(erratasFromSource, sourceChannel, targetChannel);
+                ErrataManager.filterErrataRequiringMerge(matchingErratas, sourceChannel, targetChannel);
+
+        // Update context
+        syncFromSourceContext.setMatchingErratas(matchingErratas);
+        syncFromSourceContext.setErratasToSync(erratasToSync);
 
         if (erratasToSync.isEmpty()) {
             LOG.debug("No erratas to sync");
-            return emptySet();
+            return;
         }
 
         Set<Long> errataIds = erratasToSync.stream().map(Errata::getId).collect(Collectors.toSet());
         ErrataManager.cloneErrata(targetChannel.getId(), errataIds, request.forceRefresh(), user);;
-        return erratasToSync;
     }
 
     /**
@@ -132,18 +137,12 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
      * For ERRATA_AND_PACKAGES mode, only syncs packages from the given erratas.
      * For PACKAGES_ONLY mode, syncs all packages from the source channel.
      */
-    private Set<Package> syncPackages(Channel sourceChannel, Channel targetChannel,
-                                       Set<Errata> syncedErratas,
-                                       SyncRequest request) {
+    private Set<Package> syncPackages(
+            Channel sourceChannel, Channel targetChannel, SyncRequest request, SyncFromSourceContext syncFromSourceContext
+    ) {
         LOG.debug("Syncing packages from {} to {}", sourceChannel.getLabel(), targetChannel.getLabel());
 
-        Set<Package> packagesToSync = request.operation() == SyncOperation.ERRATA_AND_PACKAGES ?
-                // Only sync packages that belong to the synced erratas
-                syncedErratas.stream()
-                        .flatMap(errata -> errata.getPackages().stream())
-                        .collect(Collectors.toSet()) :
-                // sync all packages from source channel
-                new HashSet<>(sourceChannel.getPackages());
+        Set<Package> packagesToSync = getPackagesToSync(syncFromSourceContext, sourceChannel);
 
         // Exclude the packages that are already in target
         packagesToSync.removeAll(targetChannel.getPackages());
@@ -170,5 +169,28 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
         return packagesToSync;
     }
 
+
+    /**
+     * Resolves what packages to sync.
+     * For the possible scenarios:
+     * - ERRATA_AND_PACKAGES: {@link SyncFromSourceContext#getMatchingErratas()} cannot be null
+     *   as {@link SyncFromSourceServiceImpl#syncErratas} initializes it.
+     *   Packages come from ALL matching erratas (including those already in target).
+     * - PACKAGES_ONLY: {@link SyncFromSourceContext#getMatchingErratas()} is null, sync all packages from source.
+     * - ERRATA_ONLY: N/A - this method isn't called.
+     *
+     * @return the packages to sync
+     */
+    private Set<Package> getPackagesToSync(SyncFromSourceContext syncFromSourceContext, Channel sourceChannel) {
+        Set<Errata> matchingErratas = syncFromSourceContext.getMatchingErratas();
+
+        if (matchingErratas == null) {
+            return new HashSet<>(sourceChannel.getPackages());
+        }
+
+        return matchingErratas.stream()
+                .flatMap(e -> e.getPackages().stream())
+                .collect(Collectors.toSet());
+    }
 
 }
