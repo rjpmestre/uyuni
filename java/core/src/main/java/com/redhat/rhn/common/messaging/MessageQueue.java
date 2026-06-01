@@ -54,6 +54,8 @@ import com.redhat.rhn.frontend.events.SsmUpgradePackagesAction;
 import com.redhat.rhn.frontend.events.SsmUpgradePackagesEvent;
 import com.redhat.rhn.frontend.events.SsmVerifyPackagesAction;
 import com.redhat.rhn.frontend.events.SsmVerifyPackagesEvent;
+import com.redhat.rhn.frontend.events.SyncFromSourceErrataAction;
+import com.redhat.rhn.frontend.events.SyncFromSourceErrataEvent;
 import com.redhat.rhn.frontend.events.TraceBackAction;
 import com.redhat.rhn.frontend.events.TraceBackEvent;
 import com.redhat.rhn.frontend.events.UpdateErrataCacheAction;
@@ -330,6 +332,8 @@ public class MessageQueue {
                                     NewCloneErrataEvent.class);
         MessageQueue.registerAction(new SsmErrataAction(),
                                     SsmErrataEvent.class);
+        MessageQueue.registerAction(new SyncFromSourceErrataAction(),
+                SyncFromSourceErrataEvent.class);
 
         // Copy SW source contents to an Environment target
         MessageQueue.registerAction(new AlignSoftwareTargetAction(),

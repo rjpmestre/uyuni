@@ -235,6 +235,32 @@ public class ErrataManager extends BaseManager {
     }
 
     /**
+     * Filters out errata that does not need to be merged between channels.
+     * Excludes erratas that already exist in both channels, or have siblings, or are clones.
+     *
+     * @param errataToMergeIn the initial set of {@link Errata} to merge
+     * @param fromChannel the source {@link Channel}
+     * @param toChannel the target {@link Channel}
+     * @return filtered set of {@link Errata} that actually require merging
+     */
+    public static Set<Errata> filterErrataRequiringMerge(
+            Set<Errata> errataToMergeIn,Channel fromChannel, Channel toChannel
+    ) {
+        Set<Errata> errataToMerge = new HashSet<>(errataToMergeIn);
+
+        // find errata that we do not need to merge
+        List<Errata> same = ErrataFactory.listErrataInBothChannels(fromChannel, toChannel);
+        List<Errata> brothers = ErrataFactory.listSiblingsInChannels(fromChannel, toChannel);
+        List<Errata> clones = ErrataFactory.listClonesInChannels(fromChannel, toChannel);
+        // and remove them
+        same.forEach(errataToMerge::remove);
+        brothers.forEach(errataToMerge::remove);
+        clones.forEach(errataToMerge::remove);
+
+        return errataToMerge;
+    }
+
+    /**
      * Merge given {@link Errata} from source {@link Channel} to target {@link Channel}.
      *
      * @param user User performing the operation

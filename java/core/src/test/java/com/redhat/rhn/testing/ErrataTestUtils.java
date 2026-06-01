@@ -46,8 +46,11 @@ import com.redhat.rhn.domain.server.ServerFactoryTest;
 import com.redhat.rhn.domain.user.User;
 import com.redhat.rhn.frontend.action.channel.manage.ErrataHelper;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -241,6 +244,33 @@ public class ErrataTestUtils {
             throws Exception {
         Errata result = ErrataFactoryTest.createTestErrata(user.getOrg().getId());
         result.setCves(cves);
+        return TestUtils.saveAndFlush(result);
+    }
+
+    /**
+     * Create a {@link Errata} for a single CVE.
+     * @param user the errata owner
+     * @param cveName the vulnerability identifier of the single CVE fixed by this errata
+     * @return the newly created errata
+     * @throws Exception if anything goes wrong
+     */
+    public static Errata createTestErrataAndCve(User user, String cveName) throws Exception {
+        Errata result = ErrataFactoryTest.createTestErrata(user.getOrg().getId());
+        Cve cve = ErrataTestUtils.createTestCve(cveName);
+        result.setCves(Collections.singleton(cve));
+        return TestUtils.saveAndFlush(result);
+    }
+
+    /**
+     * Create a {@link Errata} for a single CVE with a random name.
+     * @param user the errata owner
+     * @return the newly created errata
+     * @throws Exception if anything goes wrong
+     */
+    public static Errata createTestErrataAndCve(User user) throws Exception {
+        Errata result = ErrataFactoryTest.createTestErrata(user.getOrg().getId());
+        Cve cve = ErrataTestUtils.createTestCve(TestUtils.randomString());
+        result.setCves(Collections.singleton(cve));
         return TestUtils.saveAndFlush(result);
     }
 

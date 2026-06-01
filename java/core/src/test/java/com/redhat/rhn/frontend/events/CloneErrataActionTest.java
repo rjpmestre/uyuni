@@ -40,7 +40,7 @@ import java.util.LinkedList;
 import java.util.Map;
 
 /**
- * Tests {@link CloneErrataAction}.
+ * Tests {@link SyncFromSourceErrataAction}.
  */
 public class CloneErrataActionTest extends BaseTestCaseWithUser {
 
@@ -93,7 +93,7 @@ public class CloneErrataActionTest extends BaseTestCaseWithUser {
             }
         };
         CloneErrataEvent event = new CloneErrataEvent(cloned, errataIds, admin);
-        new CloneErrataAction().execute(event);
+        new SyncFromSourceErrataAction().execute(event);
 
         // new errata should be in cloned channel, new repository metadata
         // generation scheduled
