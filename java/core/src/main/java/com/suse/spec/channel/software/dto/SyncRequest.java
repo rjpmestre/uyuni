@@ -10,6 +10,9 @@
  */
 package com.suse.spec.channel.software.dto;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+
 /**
  * Request object for channel sync operations.
  *
@@ -27,4 +30,19 @@ public record SyncRequest(
     boolean forceRefresh
 ) {
 
+    @Override
+    public boolean equals(Object oIn) {
+        if (this == oIn) return true;
+        if (oIn == null || getClass() != oIn.getClass()) return false;
+        SyncRequest that = (SyncRequest) oIn;
+        return new EqualsBuilder().append(async, that.async).append(alignModules, that.alignModules)
+                .append(forceRefresh, that.forceRefresh).append(criteria, that.criteria)
+                .append(operation, that.operation).isEquals();
+    }
+
+    @Override
+    public int hashCode() {
+        return new HashCodeBuilder(17, 37).append(criteria).append(operation)
+                .append(async).append(alignModules).append(forceRefresh).toHashCode();
+    }
 }

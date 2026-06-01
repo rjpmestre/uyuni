@@ -11,10 +11,12 @@
 package com.suse.impl.channel.software;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.redhat.rhn.common.hibernate.HibernateFactory;
 import com.redhat.rhn.domain.channel.Channel;
 import com.redhat.rhn.domain.channel.ChannelFactoryTest;
 import com.redhat.rhn.domain.errata.Errata;
@@ -23,10 +25,12 @@ import com.redhat.rhn.domain.org.Org;
 import com.redhat.rhn.domain.rhnpackage.Package;
 import com.redhat.rhn.domain.rhnpackage.PackageTest;
 import com.redhat.rhn.domain.user.User;
+import com.redhat.rhn.frontend.events.SyncFromSourceErrataEvent;
 import com.redhat.rhn.frontend.xmlrpc.NoSuchChannelException;
 import com.redhat.rhn.frontend.xmlrpc.PermissionCheckFailureException;
 import com.redhat.rhn.testing.BaseTestCaseWithUser;
 import com.redhat.rhn.testing.ErrataTestUtils;
+import com.redhat.rhn.testing.ObservableMessageQueue;
 import com.redhat.rhn.testing.UserTestUtils;
 
 import com.suse.spec.channel.software.dto.ErrataCriteria;
@@ -113,10 +117,12 @@ public class SyncFromSourceServiceImplTest extends BaseTestCaseWithUser {
     @Test
     public void testSyncWhenErrataOnly() throws Exception {
         // Create errata with a package in source channel
-        Errata errata = ErrataTestUtils.createTestErrataAndCve(user);
-        Package pkg = PackageTest.createTestPackage(userOrg);
-        errata.addPackage(pkg);
-        ErrataFactory.addToChannel(errata, sourceChannel, user, Set.of(pkg));
+        Errata errata = ErrataTestUtils.errataBuilder(user).build();
+        Package pkg1 = PackageTest.createTestPackage(userOrg);
+        Package pkg2 = PackageTest.createTestPackage(userOrg);
+        errata.addPackage(pkg1);
+        errata.addPackage(pkg2);
+        ErrataFactory.addToChannel(errata, sourceChannel, user, Set.of(pkg1, pkg2));
 
         // Sync
         SyncRequest request = ChannelSoftwareTestUtils.createSyncRequest(SyncOperation.ERRATA_ONLY);
@@ -137,30 +143,27 @@ public class SyncFromSourceServiceImplTest extends BaseTestCaseWithUser {
 
     /**
      * Tests syncing erratas only from source to target channel asynchronously.
-     * Repeats same setup as {@link SyncFromSourceServiceImplTest#testSyncWhenErrataOnly}.
+     * Verifies that async=true actually publishes events with correct parameters.
      */
     @Test
     public void testSyncWhenErrataOnlyAsynchronously() throws Exception {
+        // Register observer for SyncFromSourceErrataEvent published messages
+        ObservableMessageQueue.registerCapturingAction(SyncFromSourceErrataEvent.class);
+
         // Create errata with a package in source channel
-        Errata errata = ErrataTestUtils.createTestErrataAndCve(user);
+        Errata errata = ErrataTestUtils.errataBuilder(user).build();
         Package pkg = PackageTest.createTestPackage(userOrg);
         errata.addPackage(pkg);
         ErrataFactory.addToChannel(errata, sourceChannel, user, Set.of(pkg));
 
         // Sync
         SyncRequest request = ChannelSoftwareTestUtils.createSyncRequestAsync(SyncOperation.ERRATA_ONLY);
-        SyncResponse response = service.sync(user, sourceChannel.getLabel(), targetChannel.getLabel(), request);
-        SyncResponse duplicatedResponse =
-                service.sync(user, sourceChannel.getLabel(), targetChannel.getLabel(), request);
 
-        // Assert first request only handles expected errata
-        assertNotNull(response);
-        assertEquals(1, response.erratas().size());
-        assertTrue(response.erratas().contains(errata));
-        assertTrue(response.packages().isEmpty());
-
-        // Assert duplicates of response will be the same in async
-        assertEquals(response, duplicatedResponse);
+        try {
+            executeAndAssertAsyncRequestAndPublishesEvent(request);
+        } finally {
+            ObservableMessageQueue.unregisterCapturingAction(SyncFromSourceErrataEvent.class);
+        }
     }
 
     // PACKAGES_ONLY
@@ -196,22 +199,19 @@ public class SyncFromSourceServiceImplTest extends BaseTestCaseWithUser {
      */
     @Test
     public void testSyncWhenPackagesOnlyAsynchronously() throws Exception {
-        TestSetupPackagesOnly testSetupPackagesOnly = getTestSetupPackagesOnly();
+        // Register observer for SyncFromSourceErrataEvent published messages
+        ObservableMessageQueue.registerCapturingAction(SyncFromSourceErrataEvent.class);
+
+        getTestSetupPackagesOnly();
 
         // Sync
         SyncRequest request = ChannelSoftwareTestUtils.createSyncRequestAsync(SyncOperation.PACKAGES_ONLY);
-        SyncResponse response = service.sync(user, sourceChannel.getLabel(), targetChannel.getLabel(), request);
-        SyncResponse duplicatedResponse =
-                service.sync(user, sourceChannel.getLabel(), targetChannel.getLabel(), request);
 
-        // Assert first request only handles expected package
-        assertNotNull(response);
-        assertTrue(response.erratas().isEmpty());
-        assertEquals(1, response.packages().size());
-        assertTrue(response.packages().contains(testSetupPackagesOnly.pkg2()));
-
-        // Assert duplicates of response will be the same in async
-        assertEquals(response, duplicatedResponse);
+        try {
+            executeAndAssertAsyncRequestAndPublishesEvent(request);
+        } finally {
+            ObservableMessageQueue.unregisterCapturingAction(SyncFromSourceErrataEvent.class);
+        }
     }
 
     /**
@@ -293,9 +293,9 @@ public class SyncFromSourceServiceImplTest extends BaseTestCaseWithUser {
      * - repeating the sync will not clone again neither erratas nor packages
      */
     @Test
-    public void testSyncWhenErrataAndPackages() throws Exception {
+    public void testSyncWhenErrataAndPackages() {
         // Create errata with packages in source channel
-        Errata errata = ErrataTestUtils.createTestErrataAndCve(user);
+        Errata errata = ErrataTestUtils.errataBuilder(user).build();
         Package pkg1 = PackageTest.createTestPackage(userOrg);
         Package pkg2 = PackageTest.createTestPackage(userOrg);
         errata.addPackage(pkg1);
@@ -329,7 +329,7 @@ public class SyncFromSourceServiceImplTest extends BaseTestCaseWithUser {
     @Test
     public void testSyncWhenErrataAndPackagesAsynchronously() throws Exception {
         // Create errata with packages in source channel
-        Errata errata = ErrataTestUtils.createTestErrataAndCve(user);
+        Errata errata = ErrataTestUtils.errataBuilder(user).build();
         Package pkg1 = PackageTest.createTestPackage(userOrg);
         Package pkg2 = PackageTest.createTestPackage(userOrg);
         errata.addPackage(pkg1);
@@ -338,18 +338,11 @@ public class SyncFromSourceServiceImplTest extends BaseTestCaseWithUser {
 
         // Sync
         SyncRequest request = ChannelSoftwareTestUtils.createSyncRequestAsync(SyncOperation.ERRATA_AND_PACKAGES);
-        SyncResponse response = service.sync(user, sourceChannel.getLabel(), targetChannel.getLabel(), request);
-        SyncResponse duplicatedResponse =
-                service.sync(user, sourceChannel.getLabel(), targetChannel.getLabel(), request);
-
-        // Assert first request will only return the queued erratas but not any package details
-        assertNotNull(response);
-        assertEquals(1, response.erratas().size());
-        assertTrue(response.erratas().contains(errata));
-        assertTrue(response.packages().isEmpty());
-
-        // Assert duplicates of response will be the same in async
-        assertEquals(response, duplicatedResponse);
+        try {
+            executeAndAssertAsyncRequestAndPublishesEvent(request);
+        } finally {
+            ObservableMessageQueue.unregisterCapturingAction(SyncFromSourceErrataEvent.class);
+        }
     }
 
     /**
@@ -367,14 +360,59 @@ public class SyncFromSourceServiceImplTest extends BaseTestCaseWithUser {
     }
 
     /**
+     * Helper method that executes an async sync request and asserts that it publishes a
+     * {@link SyncFromSourceErrataEvent}.
+     * Repeats the request to verify idempotency.
+     * Requires {@link SyncFromSourceErrataEvent} to have already been registered via
+     * {@code ObservableMessageQueue.registerCapturingAction()}.
+     */
+    private void executeAndAssertAsyncRequestAndPublishesEvent(SyncRequest request)
+            throws InterruptedException {
+        assertTrue(request.async(), "This method is meant for async requests!");
+
+        SyncResponse response = service.sync(user, sourceChannel.getLabel(), targetChannel.getLabel(), request);
+        SyncResponse duplicatedResponse =
+                service.sync(user, sourceChannel.getLabel(), targetChannel.getLabel(), request);
+
+        // Async calls return always empty
+        assertTrue(response.erratas().isEmpty());
+        assertTrue(response.packages().isEmpty());
+        assertEquals(response, duplicatedResponse);
+
+        // Commit transaction so EventDatabaseMessage can be processed and actions be captured
+        HibernateFactory.commitTransaction();
+
+        // Wait for both events to be captured
+        List<SyncFromSourceErrataEvent> syncFromSourceErrataEvents =
+                ObservableMessageQueue.awaitAndFetch(SyncFromSourceErrataEvent.class, 2);
+        assertEquals(2, syncFromSourceErrataEvents.size());
+
+        // Assert published event properties and its the same as the duplicated
+        SyncFromSourceErrataEvent event = syncFromSourceErrataEvents.get(0);
+        // All properties but async should be the same
+        assertEquals(sourceChannel.getLabel(), event.getSourceChannelLabel());
+        assertEquals(targetChannel.getLabel(), event.getTargetChannelLabel());
+        assertEquals(user.getId(), event.getUserId());
+        assertEquals(request.criteria(), event.getSyncRequest().criteria());
+        assertEquals(request.operation(), event.getSyncRequest().operation());
+        assertEquals(request.alignModules(), event.getSyncRequest().alignModules());
+        assertEquals(request.forceRefresh(), event.getSyncRequest().forceRefresh());
+
+        assertFalse(event.getSyncRequest().async());
+
+        // Events are equal
+        assertEquals(syncFromSourceErrataEvents.get(0), syncFromSourceErrataEvents.get(1));
+    }
+
+    /**
      * Creates a setup with 2 erratas with a package each.
      * Target channel will have one of the errata (and package)
      * Source channel will have both
      */
     private TestSetupPackagesOnly getTestSetupPackagesOnly() throws Exception {
         // Create 2 erratas with 1 package each
-        Errata errata1 = ErrataTestUtils.createTestErrataAndCve(user);
-        Errata errata2 = ErrataTestUtils.createTestErrataAndCve(user);
+        Errata errata1 = ErrataTestUtils.errataBuilder(user).build();
+        Errata errata2 = ErrataTestUtils.errataBuilder(user).build();
 
         // Add 1 package to each errata
         Package pkg1 = PackageTest.createTestPackage(userOrg);

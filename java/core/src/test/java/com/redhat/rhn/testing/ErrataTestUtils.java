@@ -32,6 +32,8 @@ import com.redhat.rhn.domain.errata.Cve;
 import com.redhat.rhn.domain.errata.Errata;
 import com.redhat.rhn.domain.errata.ErrataFactory;
 import com.redhat.rhn.domain.errata.ErrataFactoryTest;
+import com.redhat.rhn.domain.errata.ErrataFile;
+import com.redhat.rhn.domain.errata.Severity;
 import com.redhat.rhn.domain.rhnpackage.Package;
 import com.redhat.rhn.domain.rhnpackage.PackageEvr;
 import com.redhat.rhn.domain.rhnpackage.PackageEvrFactory;
@@ -46,11 +48,10 @@ import com.redhat.rhn.domain.server.ServerFactoryTest;
 import com.redhat.rhn.domain.user.User;
 import com.redhat.rhn.frontend.action.channel.manage.ErrataHelper;
 
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -244,33 +245,6 @@ public class ErrataTestUtils {
             throws Exception {
         Errata result = ErrataFactoryTest.createTestErrata(user.getOrg().getId());
         result.setCves(cves);
-        return TestUtils.saveAndFlush(result);
-    }
-
-    /**
-     * Create a {@link Errata} for a single CVE.
-     * @param user the errata owner
-     * @param cveName the vulnerability identifier of the single CVE fixed by this errata
-     * @return the newly created errata
-     * @throws Exception if anything goes wrong
-     */
-    public static Errata createTestErrataAndCve(User user, String cveName) throws Exception {
-        Errata result = ErrataFactoryTest.createTestErrata(user.getOrg().getId());
-        Cve cve = ErrataTestUtils.createTestCve(cveName);
-        result.setCves(Collections.singleton(cve));
-        return TestUtils.saveAndFlush(result);
-    }
-
-    /**
-     * Create a {@link Errata} for a single CVE with a random name.
-     * @param user the errata owner
-     * @return the newly created errata
-     * @throws Exception if anything goes wrong
-     */
-    public static Errata createTestErrataAndCve(User user) throws Exception {
-        Errata result = ErrataFactoryTest.createTestErrata(user.getOrg().getId());
-        Cve cve = ErrataTestUtils.createTestCve(TestUtils.randomString());
-        result.setCves(Collections.singleton(cve));
         return TestUtils.saveAndFlush(result);
     }
 
@@ -581,5 +555,160 @@ public class ErrataTestUtils {
 
         // Copy the packages
         copy.replacePackages(new HashSet<>(original.getPackages()));
+    }
+
+
+    /**
+     * Create a {@link Errata} for a single CVE with a random name.
+     * @param user the errata owner
+     * @return the newly created errata
+     * @throws Exception if anything goes wrong
+     */
+//    public static Errata createTestErrataAndCve(User user) throws Exception {
+//        Errata result = ErrataFactoryTest.createTestErrata(user.getOrg().getId());
+//        Cve cve = ErrataTestUtils.createTestCve(TestUtils.randomString());
+//        result.setCves(Collections.singleton(cve));
+//        return TestUtils.saveAndFlush(result);
+//    }
+
+    /**
+     * Builder for creating test erratas with fluent API.
+     * Does NOT add default packages or CVEs - only what you specify.
+     *
+     * Usage:
+     * <pre>
+     * Errata errata = ErrataTestUtils.errataBuilder(user)
+     *     .withAdvisory("CUSTOM-2024-001")
+     *     .withCves("CVE-2024-1234", "CVE-2024-5678")
+     *     .withPackages(pkg1, pkg2)
+     *     .build();
+     * </pre>
+     */
+    public static class ErrataBuilder {
+        private static int advisorySeq = 1000;
+
+        private final User user;
+        private String advisory = null;
+        private Set<String> cveNames = new HashSet<>();
+        private Set<Package> packages = new HashSet<>();
+        private boolean createDummyTestPackage = false;
+
+        private ErrataBuilder(User user) {
+            this.user = user;
+        }
+
+        /**
+         * Set a custom advisory name (e.g., "CUSTOM-2024-001").
+         * If not set, uses auto-generated "JAVA-Test-{seq}".
+         *
+         * @param advisory the advisory name
+         * @return this builder
+         */
+        public ErrataBuilder withAdvisory(String advisory) {
+            this.advisory = advisory;
+            return this;
+        }
+
+        /**
+         * Add CVEs by name (will be created during build()).
+         *
+         * @param cveNames CVE identifiers (e.g., "CVE-2024-1234")
+         * @return this builder
+         */
+        public ErrataBuilder withCves(String... cveNames) {
+            Collections.addAll(this.cveNames, cveNames);
+            return this;
+        }
+
+        /**
+         * Add packages to the errata.
+         *
+         * @param packages packages to add
+         * @return this builder
+         */
+        public ErrataBuilder withPackages(Package... packages) {
+            Collections.addAll(this.packages, packages);
+            return this;
+        }
+
+        /**
+         * Define if errata should build a dummy test package
+         *
+         * @param createDummyTestPackageIn whether to create and associate a dummy test package
+         * @return this builder
+         */
+        public ErrataBuilder withDummyPackage(boolean createDummyTestPackageIn) {
+            this.createDummyTestPackage = createDummyTestPackageIn;
+            return this;
+        }
+
+        /**
+         * Build the errata and persist it.
+         * Creates a minimal errata with default test values (copied from fillOutErrata structure).
+         * Does NOT add default packages - only what you specify.
+         *
+         * @return the created errata
+         */
+        public Errata build() {
+            Errata errata = new Errata();
+
+            String name = advisory != null ? advisory : "JAVA-Test-" + advisorySeq++;
+            errata.setOrg(user.getOrg());
+            errata.setAdvisory(name);
+            errata.setAdvisoryType(ErrataFactory.ERRATA_TYPE_BUG);
+            errata.setProduct("Red Hat Linux");
+            errata.setDescription("Test desc ..");
+            errata.setSynopsis("Test synopsis");
+            errata.setSolution("Test solution");
+            errata.setNotes("Test notes for test errata");
+            errata.setTopic("test topic");
+            errata.setRefersTo("rhn unit tests");
+            errata.setUpdateDate(new Date());
+            errata.setIssueDate(new Date());
+            errata.setAdvisoryName(name);
+            errata.setAdvisoryRel(2L);
+            errata.setErrataFrom("maint-coord@suse.de");
+            errata.setLocallyModified(Boolean.FALSE);
+            errata.setSeverity(Severity.getById(1));
+
+            // Create CVEs from names
+            Set<Cve> allCves = new HashSet<>();
+            for (String cveName : cveNames) {
+                allCves.add(createTestCve(cveName));
+            }
+
+            // Set user-specified CVEs and packages
+            errata.setCves(allCves);
+            for (Package pkg : packages) {
+                errata.addPackage(pkg);
+            }
+
+            if(createDummyTestPackage){
+                Package testPackage = PackageTest.createTestPackage(user.getOrg());
+
+                ErrataFile ef;
+                Set<Package> errataFilePackages = new HashSet<>();
+                errataFilePackages.add(testPackage);
+                errata.addPackage(testPackage);
+                ef = ErrataFactory.createErrataFile(ErrataFactory.
+                                lookupErrataFileType("RPM"),
+                        "SOME FAKE CHECKSUM: 123456789012",
+                        "test errata file" + TestUtils.randomString(), errataFilePackages);
+
+                errata.addFile(ef);
+            }
+
+            return TestUtils.saveAndFlush(errata);
+        }
+    }
+
+    /**
+     * Create an errata builder.
+     *
+     * @param user the errata owner
+     * @return a new builder instance
+     */
+    public static ErrataBuilder errataBuilder(User user) {
+        return new ErrataBuilder(user);
     }
 }

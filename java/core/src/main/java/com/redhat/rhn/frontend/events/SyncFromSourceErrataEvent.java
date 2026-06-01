@@ -22,6 +22,8 @@ import com.redhat.rhn.domain.user.UserFactory;
 
 import com.suse.spec.channel.software.dto.SyncRequest;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.hibernate.Transaction;
 
 import java.util.Collection;
@@ -48,7 +50,9 @@ public class SyncFromSourceErrataEvent implements EventDatabaseMessage {
      * @param targetChannelLabelIn channel to clone errata into
      * @param syncRequestIn request parameters with sync details
      */
-    public SyncFromSourceErrataEvent(User userIn, String sourceChannelLabelIn, String targetChannelLabelIn, SyncRequest syncRequestIn) {
+    public SyncFromSourceErrataEvent(
+            User userIn, String sourceChannelLabelIn, String targetChannelLabelIn, SyncRequest syncRequestIn
+    ) {
         userId = userIn.getId();
         sourceChannelLabel = sourceChannelLabelIn;
         targetChannelLabel = targetChannelLabelIn;
@@ -103,5 +107,22 @@ public class SyncFromSourceErrataEvent implements EventDatabaseMessage {
 
     public SyncRequest getSyncRequest() {
         return syncRequest;
+    }
+
+    @Override
+    public boolean equals(Object oIn) {
+        if (this == oIn) return true;
+        if (oIn == null || getClass() != oIn.getClass()) return false;
+        SyncFromSourceErrataEvent that = (SyncFromSourceErrataEvent) oIn;
+        return new EqualsBuilder().append(transaction, that.transaction).append(userId, that.userId)
+                .append(sourceChannelLabel, that.sourceChannelLabel)
+                .append(targetChannelLabel, that.targetChannelLabel).append(syncRequest, that.syncRequest).isEquals();
+    }
+
+    @Override
+    public int hashCode() {
+        return new HashCodeBuilder(17, 37)
+                .append(transaction).append(userId).append(sourceChannelLabel)
+                .append(targetChannelLabel).append(syncRequest).toHashCode();
     }
 }

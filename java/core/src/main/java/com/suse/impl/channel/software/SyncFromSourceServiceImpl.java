@@ -16,18 +16,15 @@ import static java.util.Collections.emptySet;
 
 import com.redhat.rhn.common.UyuniErrorReport;
 import com.redhat.rhn.common.messaging.MessageQueue;
-import com.redhat.rhn.common.security.PermissionException;
 import com.redhat.rhn.domain.channel.Channel;
 import com.redhat.rhn.domain.channel.ChannelFactory;
 import com.redhat.rhn.domain.errata.Errata;
 import com.redhat.rhn.domain.rhnpackage.Package;
 import com.redhat.rhn.domain.user.User;
 import com.redhat.rhn.frontend.events.SyncFromSourceErrataEvent;
-import com.redhat.rhn.frontend.xmlrpc.NoSuchChannelException;
 import com.redhat.rhn.manager.channel.ChannelManager;
 import com.redhat.rhn.manager.errata.ErrataManager;
 import com.redhat.rhn.manager.errata.cache.ErrataCacheManager;
-import com.redhat.rhn.manager.user.UserManager;
 
 import com.suse.persistence.dao.ErrataRepository;
 import com.suse.spec.channel.software.SyncFromSourceService;
@@ -38,12 +35,10 @@ import com.suse.spec.channel.software.dto.SyncResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Implementation of SyncFromSourceService that syncs erratas and/or packages from source channel to target channel.
