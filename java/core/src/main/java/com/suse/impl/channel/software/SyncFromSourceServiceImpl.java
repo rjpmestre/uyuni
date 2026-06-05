@@ -75,7 +75,7 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
         Set<Errata> erratas = emptySet();
         Set<Package> packages = emptySet();
 
-        if (request.async()){
+        if (request.async()) {
             SyncFromSourceErrataEvent syncFromSourceErrataEvent = new SyncFromSourceErrataEvent(
                     user, sourceChannelLabel, targetChannelLabel, request
             );
@@ -129,7 +129,7 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
         }
 
         Set<Long> errataIds = erratasToSync.stream().map(Errata::getId).collect(Collectors.toSet());
-        ErrataManager.cloneErrata(targetChannel.getId(), errataIds, request.forceRefresh(), user);;
+        ErrataManager.cloneErrata(targetChannel.getId(), errataIds, request.forceRefresh(), user);
     }
 
     /**
@@ -138,11 +138,11 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
      * For PACKAGES_ONLY mode, syncs all packages from the source channel.
      */
     private Set<Package> syncPackages(
-            Channel sourceChannel, Channel targetChannel, SyncRequest request, SyncFromSourceContext syncFromSourceContext
+            Channel sourceChannel, Channel targetChannel, SyncRequest request, SyncFromSourceContext context
     ) {
         LOG.debug("Syncing packages from {} to {}", sourceChannel.getLabel(), targetChannel.getLabel());
 
-        Set<Package> packagesToSync = getPackagesToSync(syncFromSourceContext, sourceChannel);
+        Set<Package> packagesToSync = getPackagesToSync(context, sourceChannel);
 
         // Exclude the packages that are already in target
         packagesToSync.removeAll(targetChannel.getPackages());
@@ -152,7 +152,7 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
             return emptySet();
         }
 
-        targetChannel.getPackages().addAll(packagesToSync);
+        targetChannel.addPackages(packagesToSync);
         ChannelFactory.save(targetChannel);
         ChannelManager.refreshWithNewestPackages(targetChannel, "SyncFromSourceService");
 
@@ -161,7 +161,7 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
             targetChannel.cloneModulesFrom(sourceChannel);
         }
 
-        if(request.forceRefresh()){
+        if (request.forceRefresh()) {
             List<Long> packagesToSyncIds = packagesToSync.stream().map(Package::getId).toList();
             ErrataCacheManager.insertCacheForChannelPackagesAsync(List.of(targetChannel.getId()), packagesToSyncIds);
         }
