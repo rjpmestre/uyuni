@@ -244,7 +244,7 @@ public class ErrataManager extends BaseManager {
      * @return filtered set of {@link Errata} that actually require merging
      */
     public static Set<Errata> filterErrataRequiringMerge(
-            Set<Errata> errataToMergeIn,Channel fromChannel, Channel toChannel
+            Set<Errata> errataToMergeIn, Channel fromChannel, Channel toChannel
     ) {
         Set<Errata> errataToMerge = new HashSet<>(errataToMergeIn);
 
@@ -258,20 +258,6 @@ public class ErrataManager extends BaseManager {
         clones.forEach(errataToMerge::remove);
 
         return errataToMerge;
-    }
-
-    /**
-     * Merge given {@link Errata} from source {@link Channel} to target {@link Channel}.
-     *
-     * @param user User performing the operation
-     * @param errataToMergeIn set of {@link Errata} to merge
-     * @param toChannel the target {@link Channel}
-     * @param fromChannel the source {@link Channel}
-     * @return the set of merged {@link Errata}
-     */
-    public static Set<Errata> mergeErrataToChannel(User user, Set<Errata> errataToMergeIn,
-            Channel toChannel, Channel fromChannel) {
-        return mergeErrataToChannel(user, errataToMergeIn, toChannel, fromChannel, true, true);
     }
 
     /**
@@ -2229,6 +2215,45 @@ public class ErrataManager extends BaseManager {
     }
 
     /**
+     * Get or create a clone of an errata for a specific organization.
+     *
+     * Handles three types of erratas:
+     * 1. ClonedErrata instances (isCloned() == true): always used as-is
+     * 2. Custom erratas (org != null, !isCloned()): cloned OR used as-is based on alwaysClone flag
+     * 3. Vendor erratas (org == null): always finds/creates a clone
+     *
+     * @param errata the errata to process
+     * @param org the target organization
+     * @param alwaysClone if true, clones custom erratas; if false, uses them as-is
+     * @return the errata (or its clone) that belongs to the target organization
+     */
+    public static Errata getOrCreateCloneForOrg(Errata errata, Org org, boolean alwaysClone) {
+        // If errata already cloned, return it
+        if (errata.isCloned()) {
+            return errata;
+        }
+
+        // Custom errata belonging to an org
+        if (errata.getOrg() != null && !alwaysClone) {
+            // mergeErrata behavior: use custom erratas as-is
+            return errata;
+        }
+
+        // Vendor errata (org == null) OR custom errata with alwaysClone=true
+        // Check for existing clone or create new one
+        List<Errata> clones = ErrataFactory.lookupErrataByOriginal(org, errata);
+        if (clones.isEmpty()) {
+            log.debug("Cloning errata");
+            Long clonedId = ErrataHelper.cloneErrataFaster(errata.getId(), org);
+            return ErrataFactory.lookupById(clonedId);
+        }
+        else {
+            log.debug("Re-publishing clone");
+            return clones.get(0);
+        }
+    }
+
+    /**
      * Remove from RhnSet erratas that are not needed for the server.
      * This is useful to remove elements that were included when the errata was needed and remained.
      *
@@ -2281,4 +2306,101 @@ public class ErrataManager extends BaseManager {
         }
         return patchId;
     }
+
+    /**
+     * Clones a list of errata, reusing existing clones when available.
+     * For each errata:
+     * - If already cloned: use as-is
+     * - If vendor errata with existing clone in org: reuse existing clone
+     * - If vendor errata without clone: create new clone via cloneErrataFaster
+     *
+     * @param errataToClone List of errata to clone
+     * @param org Organization to clone for
+     * @return Set of cloned errata (may include newly created and existing clones)
+     */
+    public static Set<Errata> cloneErrataForOrg(List<Errata> errataToClone, Org org) {
+        Set<Errata> errataToAdd = new HashSet<>();
+        for (Errata toClone : errataToClone) {
+            if (toClone.isCloned()) {
+                errataToAdd.add(toClone);
+            }
+            else {
+                List<Errata> clones = ErrataFactory.lookupErrataByOriginal(org, toClone);
+                if (clones.isEmpty()) {
+                    Long clonedId = ErrataHelper.cloneErrataFaster(toClone.getId(), org);
+                    Errata clonedErrata = ErrataFactory.lookupById(clonedId);
+                    errataToAdd.add(clonedErrata);
+                }
+                else {
+                    errataToAdd.add(clones.get(0));
+                }
+            }
+        }
+        return errataToAdd;
+    }
+
+    /**
+     * Links errata to a channel and updates related metadata.
+     * Handles the errata X channel relationship synchronization.
+     *
+     * @param erratas Set of errata to link to channel
+     * @param channel Target channel
+     */
+    public static void linkErrataToChannel(Set<Errata> erratas, Channel channel) {
+        for (Errata errata : erratas) {
+            channel.addErrata(errata);
+            ErrataManager.replaceChannelNotifications(errata.getId(), channel.getId(), new Date());
+            ErrataCacheManager.insertCacheForChannelErrataAsync(List.of(channel.getId()), errata);
+            ErrataFactory.save(errata);
+        }
+    }
+
+    /**
+     * Helper method to add packages to channel and create/update ErrataFile records.
+     *
+     * @param channel Target channel
+     * @param packages Packages to add
+     * @param errata Errata associated with packages
+     * @param user User performing the operation
+     */
+    public static void addPackagesToChannel(Channel channel, Set<Package> packages, Errata errata, User user) {
+        // Add packages to channel
+        List<Long> pids = new ArrayList<>();
+        for (Package pack : packages) {
+            pids.add(pack.getId());
+        }
+        ChannelManager.addPackages(channel, pids, user);
+
+        // Create/update errata files (links packages to errata and channel)
+        for (Package pack : packages) {
+            if (pack.getPath() == null) {
+                throw new com.redhat.rhn.common.db.DatabaseException(
+                        "Package " + pack.getId() + " has NULL path, please run spacewalk-data-fsck");
+            }
+
+            Optional<ErrataFile> fileOpt =
+                    ErrataFactory.lookupErrataFile(errata.getId(), pack.getPath());
+
+            if (fileOpt.isPresent()) {
+                ErrataFile ef = fileOpt.get();
+                if (!ef.hasPackage(pack)) {
+                    ef.addPackage(pack);
+                }
+                ef.addChannel(channel);
+                HibernateFactory.getSession().persist(ef);
+            }
+            else {
+                ErrataFile newFile = ErrataFactory.createErrataFile(
+                        ErrataFactory.lookupErrataFileType("RPM"),
+                        pack.getChecksum().getChecksum(),
+                        pack.getPath()
+                );
+                newFile.setOwningErrata(errata);
+                newFile.addPackage(pack);
+                newFile.addChannel(channel);
+                HibernateFactory.getSession().persist(newFile);
+            }
+        }
+    }
+
 }

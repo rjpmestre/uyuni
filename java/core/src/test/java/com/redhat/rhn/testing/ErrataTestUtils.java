@@ -48,6 +48,8 @@ import com.redhat.rhn.domain.server.ServerFactoryTest;
 import com.redhat.rhn.domain.user.User;
 import com.redhat.rhn.frontend.action.channel.manage.ErrataHelper;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -710,5 +712,15 @@ public class ErrataTestUtils {
      */
     public static ErrataBuilder errataBuilder(User user) {
         return new ErrataBuilder(user);
+    }
+
+    // As last_modified field is marked as updatable=false, hibernate ignores the setter
+    // need to use native sql to force updating it
+    public static void setErrataLastModified(Errata errata, Instant lastModifiedInstant) {
+        HibernateFactory.getSession().createNativeQuery(
+                        "UPDATE rhnErrata SET last_modified = :lastMod WHERE id = :errataId"
+                ).setParameter("lastMod", Timestamp.from(lastModifiedInstant))
+                .setParameter("errataId", errata.getId())
+                .executeUpdate();
     }
 }

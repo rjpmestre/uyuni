@@ -10,6 +10,7 @@
  */
 package com.suse.persistence.dao;
 
+import static com.redhat.rhn.common.ExceptionMessage.NOT_INSTANTIABLE;
 import static com.redhat.rhn.common.hibernate.HibernateFactory.getSession;
 import static com.suse.utils.Predicates.isProvided;
 
@@ -35,12 +36,12 @@ public class ErrataRepository {
      *   - If org is provided: returns ONLY erratas where org_id = org
      *   - If org is null: returns ONLY vendor erratas (org_id IS NULL)
      *
-     * @param org the organization (ignored if channel is provided; mutually exclusive filter otherwise)
-     * @param channel the channel (if provided, defines scope and org filter is ignored)
-     * @param advisories optional list of advisory names to filter by (null to skip filter)
-     * @param startDate optional start date filter (lastModified &gt; startDate, null to skip)
-     * @param endDate optional end date filter (lastModified &lt; endDate, null to skip)
-     * @return set of erratas matching the criteria
+     * @param org the organization to filter by (mutually exclusive with channel)
+     * @param channel the channel to filter by (mutually exclusive with org)
+     * @param advisories list of advisory names to filter by (optional)
+     * @param startDate filter errata issued on or after this date (optional)
+     * @param endDate filter errata issued on or before this date (optional)
+     * @return Set of matching errata
      */
     public static Set<Errata> lookupErrataByChannelOrOrg(
             Org org,
@@ -49,7 +50,6 @@ public class ErrataRepository {
             Date startDate,
             Date endDate
     ) {
-
         StringBuilder hql = new StringBuilder("SELECT DISTINCT e FROM Errata e");
         Map<String, Object> params = new HashMap<>();
 
@@ -92,15 +92,13 @@ public class ErrataRepository {
     }
 
     /**
-     * Lookup erratas published in a specific channel.
-     * Optionally filter by advisory names and/or date range (lastModified).
-     * Returns all erratas in the channel regardless of org ownership.
+     * Lookup errata in a specific channel.
      *
-     * @param channel the channel to search in
-     * @param advisories optional list of advisory names to filter by (null to skip filter)
-     * @param startDate optional start date filter (lastModified &gt; startDate, null to skip)
-     * @param endDate optional end date filter (lastModified &lt; endDate, null to skip)
-     * @return set of erratas in the channel matching the criteria
+     * @param channel the channel
+     * @param advisories list of advisory names to filter by (optional)
+     * @param startDate filter errata issued on or after this date (optional)
+     * @param endDate filter errata issued on or before this date (optional)
+     * @return Set of errata in the channel
      */
     public static Set<Errata> lookupErrataByChannel(
             Channel channel, List<String> advisories, Date startDate, Date endDate
@@ -109,16 +107,13 @@ public class ErrataRepository {
     }
 
     /**
-     * Lookup erratas belonging to a specific organization.
-     * Optionally filter by advisory names and/or date range (lastModified).
-     * Returns ONLY erratas where org_id matches the specified organization.
-     * Does NOT include vendor erratas (org_id IS NULL).
+     * Lookup errata belonging to a specific organization.
      *
-     * @param org the organization (must not be null)
-     * @param advisories optional list of advisory names to filter by (null to skip filter)
-     * @param startDate optional start date filter (lastModified &gt; startDate, null to skip)
-     * @param endDate optional end date filter (lastModified &lt; endDate, null to skip)
-     * @return set of erratas belonging to the org, or empty set if org is null
+     * @param org the organization
+     * @param advisories list of advisory names to filter by (optional)
+     * @param startDate filter errata issued on or after this date (optional)
+     * @param endDate filter errata issued on or before this date (optional)
+     * @return Set of errata owned by the org
      */
     public static Set<Errata> lookupErrataByOrg(
             Org org, List<String> advisories, Date startDate, Date endDate
@@ -130,18 +125,20 @@ public class ErrataRepository {
     }
 
     /**
-     * Lookup vendor erratas (org_id IS NULL).
-     * Optionally filter by advisory names and/or date range (lastModified).
-     * Returns ONLY vendor erratas, NOT organization-specific erratas.
+     * Lookup vendor errata (org is null).
      *
-     * @param advisories optional list of advisory names to filter by (null to skip filter)
-     * @param startDate optional start date filter (lastModified &gt; startDate, null to skip)
-     * @param endDate optional end date filter (lastModified &lt; endDate, null to skip)
-     * @return set of vendor erratas matching the criteria
+     * @param advisories list of advisory names to filter by (optional)
+     * @param startDate filter errata issued on or after this date (optional)
+     * @param endDate filter errata issued on or before this date (optional)
+     * @return Set of vendor errata
      */
     public static Set<Errata> lookupErrataFromVendor(
             List<String> advisories, Date startDate, Date endDate
     ) {
         return lookupErrataByChannelOrOrg(null, null, advisories, startDate, endDate);
+    }
+
+    private ErrataRepository() {
+        throw new UnsupportedOperationException(NOT_INSTANTIABLE);
     }
 }

@@ -41,10 +41,6 @@ import java.util.stream.Collectors;
 
 /**
  * Implementation of SyncFromSourceService that syncs erratas and/or packages from source channel to target channel.
- * Supports three modes:
- * - ERRATA_ONLY: Sync erratas without their packages
- * - PACKAGES_ONLY: Sync packages without erratas
- * - ERRATA_AND_PACKAGES: Sync both erratas and their associated packages
  */
 public class SyncFromSourceServiceImpl implements SyncFromSourceService {
 
@@ -57,6 +53,7 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
             String targetChannelLabel,
             SyncRequest request
     ) {
+        // Acquire data and validate
         UyuniErrorReport errorReport = ChannelSoftwareValidationHelper.validateRequestFields(
                 targetChannelLabel,
                 sourceChannelLabel,
@@ -72,27 +69,34 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
         Channel targetChannel = ChannelSoftwareValidationHelper.validateAndLookupChannel(user, targetChannelLabel);
         ChannelSoftwareValidationHelper.validateUserHasPermission(user, targetChannel);
 
-        Set<Errata> erratas = emptySet();
-        Set<Package> packages = emptySet();
-
+        // Reschedule if async
         if (request.async()) {
             SyncFromSourceErrataEvent syncFromSourceErrataEvent = new SyncFromSourceErrataEvent(
                     user, sourceChannelLabel, targetChannelLabel, request
             );
             MessageQueue.publish(syncFromSourceErrataEvent);
-            return new SyncResponse(erratas, packages);
+            return new SyncResponse(emptySet(), emptySet());
         }
 
-        // Actual sync business logic
-        SyncFromSourceContext syncFromSourceContext = new SyncFromSourceContext();
+        // Actual execution
+        Set<Errata> erratas = emptySet();
+        Set<Package> packages = emptySet();
+
+        // All erratas from source that match the search criteria, regardless of whether they already exist in target
+        // Set null later to consider all
+        Set<Errata> matchingErratas = ErrataRepository.lookupErrataByChannel(
+                    sourceChannel,
+                    request.criteria().advisoryNames(),
+                    request.criteria().startDate(),
+                    request.criteria().endDate()
+            );
 
         if (request.operation().includesErratas()) {
-            syncErratas(user, sourceChannel, targetChannel, request, syncFromSourceContext);
-            erratas = syncFromSourceContext.getErratasToSync();
+            erratas = syncErratas(user, sourceChannel, targetChannel, request, matchingErratas);
         }
 
         if (request.operation().includesPackages()) {
-            packages = syncPackages(sourceChannel, targetChannel, request, syncFromSourceContext);
+            packages = syncPackages(sourceChannel, targetChannel, request, matchingErratas);
         }
 
         return new SyncResponse(erratas, packages);
@@ -100,36 +104,25 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
 
     /**
      * Sync erratas from source to target channel.
-     * Returns updated context containing both matching erratas and the subset that were actually synced.
+     * Returns set of synced erratas
      */
-    private void syncErratas(
-            User user, Channel sourceChannel, Channel targetChannel, SyncRequest request,
-            SyncFromSourceContext syncFromSourceContext) {
+    private Set<Errata> syncErratas(
+            User user, Channel sourceChannel, Channel targetChannel, SyncRequest request, Set<Errata> matchingErratas
+    ) {
         LOG.debug("Syncing erratas from {} to {}", sourceChannel.getLabel(), targetChannel.getLabel());
-
-        // Lookup erratas from source channel
-        Set<Errata> matchingErratas = ErrataRepository.lookupErrataByChannel(
-                sourceChannel,
-                request.criteria().advisoryNames(),
-                request.criteria().startDate(),
-                request.criteria().endDate()
-        );
 
         // Filter out erratas already in target
         Set<Errata> erratasToSync =
                 ErrataManager.filterErrataRequiringMerge(matchingErratas, sourceChannel, targetChannel);
 
-        // Update context
-        syncFromSourceContext.setMatchingErratas(matchingErratas);
-        syncFromSourceContext.setErratasToSync(erratasToSync);
-
         if (erratasToSync.isEmpty()) {
             LOG.debug("No erratas to sync");
-            return;
+            return emptySet();
         }
 
         Set<Long> errataIds = erratasToSync.stream().map(Errata::getId).collect(Collectors.toSet());
         ErrataManager.cloneErrata(targetChannel.getId(), errataIds, request.forceRefresh(), user);
+        return erratasToSync;
     }
 
     /**
@@ -138,11 +131,11 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
      * For PACKAGES_ONLY mode, syncs all packages from the source channel.
      */
     private Set<Package> syncPackages(
-            Channel sourceChannel, Channel targetChannel, SyncRequest request, SyncFromSourceContext context
+            Channel sourceChannel, Channel targetChannel, SyncRequest request, Set<Errata> matchingErratas
     ) {
         LOG.debug("Syncing packages from {} to {}", sourceChannel.getLabel(), targetChannel.getLabel());
 
-        Set<Package> packagesToSync = getPackagesToSync(context, sourceChannel);
+        Set<Package> packagesToSync = getPackagesToSync(request, matchingErratas, sourceChannel);
 
         // Exclude the packages that are already in target
         packagesToSync.removeAll(targetChannel.getPackages());
@@ -171,23 +164,15 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
 
 
     /**
-     * Resolves what packages to sync.
-     * For the possible scenarios:
-     * - ERRATA_AND_PACKAGES: {@link SyncFromSourceContext#getMatchingErratas()} cannot be null
-     *   as {@link SyncFromSourceServiceImpl#syncErratas} initializes it.
-     *   Packages come from ALL matching erratas (including those already in target).
-     * - PACKAGES_ONLY: {@link SyncFromSourceContext#getMatchingErratas()} is null, sync all packages from source.
-     * - ERRATA_ONLY: N/A - this method isn't called.
-     *
-     * @return the packages to sync
+     * Returns what packages to sync.
      */
-    private Set<Package> getPackagesToSync(SyncFromSourceContext syncFromSourceContext, Channel sourceChannel) {
-        Set<Errata> matchingErratas = syncFromSourceContext.getMatchingErratas();
-
-        if (matchingErratas == null) {
+    private Set<Package> getPackagesToSync(SyncRequest request, Set<Errata> matchingErratas, Channel sourceChannel) {
+        // If no filters were applied, consider all packages on source channel
+        if (!request.criteria().hasFilters()) {
             return new HashSet<>(sourceChannel.getPackages());
         }
 
+        // Otherwise return the packages associated with matching erratas
         return matchingErratas.stream()
                 .flatMap(e -> e.getPackages().stream())
                 .collect(Collectors.toSet());

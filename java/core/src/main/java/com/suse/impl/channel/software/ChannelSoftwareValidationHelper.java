@@ -21,6 +21,7 @@ import com.redhat.rhn.domain.user.User;
 import com.redhat.rhn.frontend.xmlrpc.InvalidChannelException;
 import com.redhat.rhn.frontend.xmlrpc.NoSuchChannelException;
 import com.redhat.rhn.frontend.xmlrpc.PermissionCheckFailureException;
+import com.redhat.rhn.manager.errata.ErrataManager;
 import com.redhat.rhn.manager.user.UserManager;
 
 import java.util.Date;
@@ -64,16 +65,16 @@ public class ChannelSoftwareValidationHelper {
     }
 
     /**
-     * Validates that the target channel is a cloned channel.
+     * Validates that a channel is a cloned.
      *
-     * @param targetChannel The channel to validate
+     * @param channel The channel to validate
      * @throws InvalidChannelException if the channel is not cloned
      */
-    public static void validateChannelIsCloned(Channel targetChannel) {
-        if (!targetChannel.isCloned()) {
+    public static void validateChannelIsCloned(Channel channel) {
+        if (!channel.isCloned()) {
             throw new InvalidChannelException(
                     "Target channel must be a cloned channel. " +
-                    "Channel '" + targetChannel.getLabel() + "' is not cloned."
+                    "Channel '" + channel.getLabel() + "' is not cloned."
             );
         }
     }
@@ -126,6 +127,19 @@ public class ChannelSoftwareValidationHelper {
         }
 
         return errorReport;
+    }
+
+    /**
+     * Validates that the channel does not have pending async jobs
+     * @param channel the channel to check
+     */
+    public static void validateChannelHasNoPendingAsyncCloneJobs(Channel channel) {
+        if (ErrataManager.channelHasPendingAsyncCloneJobs(channel)) {
+            throw new IllegalStateException(
+                    "Channel " + channel.getLabel() +
+                    " has pending asynchronous errata clone jobs. " +
+                    "You must wait until asynchronous errata clone jobs are done.");
+        }
     }
 
     private ChannelSoftwareValidationHelper() {
