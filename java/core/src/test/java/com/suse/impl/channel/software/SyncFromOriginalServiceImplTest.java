@@ -26,13 +26,14 @@ import com.redhat.rhn.domain.org.Org;
 import com.redhat.rhn.domain.rhnpackage.Package;
 import com.redhat.rhn.domain.rhnpackage.PackageTest;
 import com.redhat.rhn.domain.user.User;
+import com.redhat.rhn.frontend.events.SyncFromOriginalErrataEvent;
 import com.redhat.rhn.frontend.xmlrpc.InvalidChannelException;
 import com.redhat.rhn.frontend.xmlrpc.NoSuchChannelException;
 import com.redhat.rhn.frontend.xmlrpc.PermissionCheckFailureException;
 import com.redhat.rhn.manager.channel.ChannelManager;
 import com.redhat.rhn.taskomatic.TaskomaticApiException;
 import com.redhat.rhn.testing.BaseTestCaseWithUser;
-import com.redhat.rhn.testing.ErrataTestUtils;
+import com.redhat.rhn.testing.MessageQueueSpy;
 import com.redhat.rhn.testing.UserTestUtils;
 
 import com.suse.spec.channel.software.dto.SyncOperation;
@@ -42,6 +43,7 @@ import com.suse.spec.channel.software.dto.SyncResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -122,7 +124,6 @@ public class SyncFromOriginalServiceImplTest extends BaseTestCaseWithUser {
         assertTrue(exception.getMessage().contains("Cannot access original channel"));
     }
 
-
     // ERRATA_ONLY
 
     /**
@@ -130,7 +131,7 @@ public class SyncFromOriginalServiceImplTest extends BaseTestCaseWithUser {
      * Verifies it only handles erratas.
      */
     @Test
-    public void testSyncWhenErrataOnly() throws Exception {
+    public void testSyncWhenErrataOnly() {
         // Create errata in original channel
         Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
         Package pkg = PackageTest.createTestPackage(user.getOrg());
@@ -156,27 +157,6 @@ public class SyncFromOriginalServiceImplTest extends BaseTestCaseWithUser {
         assertEquals(response, duplicatedResponse);
     }
 
-    /**
-     * Tests syncing erratas only from original to cloned channel asynchronously.
-     * Repeats same setup as {@link SyncFromOriginalServiceImplTest#testSyncWhenErrataOnly}.
-     */
-    @Test
-    public void testSyncWhenErrataOnlyAsynchronously() throws Exception {
-        // Create errata in original channel
-        Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
-        Package pkg = PackageTest.createTestPackage(user.getOrg());
-        errata.addPackage(pkg);
-        ErrataFactory.addToChannel(errata, originalChannel, user, Set.of(pkg));
-
-        // Sync
-        SyncRequest request = ChannelSoftwareTestUtils.createSyncRequestAsync(SyncOperation.ERRATA_ONLY);
-        SyncResponse response = service.sync(user, clonedChannel.getLabel(), request);
-
-        assertNotNull(response);
-        assertTrue(response.erratas().isEmpty());
-        assertTrue(response.packages().isEmpty());
-    }
-
     // PACKAGES_ONLY
 
     /**
@@ -184,7 +164,7 @@ public class SyncFromOriginalServiceImplTest extends BaseTestCaseWithUser {
      * Verifies it only handles packages.
      */
     @Test
-    public void testSyncWhenPackagesOnly() throws Exception {
+    public void testSyncWhenPackagesOnly() {
         // Create errata with packages in original channel
         Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
         Package pkg1 = PackageTest.createTestPackage(user.getOrg());
@@ -211,31 +191,6 @@ public class SyncFromOriginalServiceImplTest extends BaseTestCaseWithUser {
         assertEquals(response, duplicatedResponse);
     }
 
-    /**
-     * Tests syncing packages only from original channel hierarchy asynchronously.
-     * Repeats same setup as {@link SyncFromOriginalServiceImplTest#testSyncWhenPackagesOnly}.
-     */
-    @Test
-    public void testSyncWhenPackagesOnlyAsynchronously() throws Exception {
-        // Create errata with packages in original channel
-        Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
-        Package pkg1 = PackageTest.createTestPackage(user.getOrg());
-        Package pkg2 = PackageTest.createTestPackage(user.getOrg());
-        errata.addPackage(pkg1);
-        errata.addPackage(pkg2);
-        ErrataFactory.addToChannel(errata, originalChannel, user, Set.of(pkg1, pkg2));
-
-        // Sync
-        SyncRequest request = ChannelSoftwareTestUtils.createSyncRequestAsync(
-                SyncOperation.PACKAGES_ONLY, errata.getAdvisoryName()
-        );
-        SyncResponse response = service.sync(user, clonedChannel.getLabel(), request);
-
-        assertNotNull(response);
-        assertTrue(response.erratas().isEmpty());
-        assertTrue(response.packages().isEmpty());
-    }
-
     // ERRATA_AND_PACKAGES
 
     /**
@@ -245,7 +200,7 @@ public class SyncFromOriginalServiceImplTest extends BaseTestCaseWithUser {
      * - repeating the sync will not clone again neither erratas nor packages
      */
     @Test
-    public void testSyncWhenErrataAndPackages() throws Exception {
+    public void testSyncWhenErrataAndPackages() {
         // Create errata with packages in original channel
         Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
         Package pkg1 = PackageTest.createTestPackage(user.getOrg());
@@ -282,8 +237,46 @@ public class SyncFromOriginalServiceImplTest extends BaseTestCaseWithUser {
      * Repeats same setup as {@link SyncFromOriginalServiceImplTest#testSyncWhenErrataAndPackages}.
      */
     @Test
-    public void testSyncWhenErrataAndPackagesAsynchronously() throws Exception {
-        // Create errata with packages in original channel
+    public void testSyncWhenErrataAndPackagesAsynchronously() {
+        MessageQueueSpy mqSpy = new MessageQueueSpy();
+        mqSpy.install();
+        try {
+            // Create errata with packages in original channel
+            Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
+            Package pkg1 = PackageTest.createTestPackage(user.getOrg());
+            Package pkg2 = PackageTest.createTestPackage(user.getOrg());
+            errata.addPackage(pkg1);
+            errata.addPackage(pkg2);
+            ErrataFactory.addToChannel(errata, originalChannel, user, Set.of(pkg1, pkg2));
+
+            // Sync asynchronously
+            SyncRequest request = ChannelSoftwareTestUtils.createSyncRequestAsync(SyncOperation.ERRATA_AND_PACKAGES);
+            SyncResponse response = service.sync(user, clonedChannel.getLabel(), request);
+            SyncResponse duplicatedResponse = service.sync(user, clonedChannel.getLabel(), request);
+
+            // Async response should be empty (work happens in background)
+            assertNotNull(response);
+            assertTrue(response.erratas().isEmpty());
+            assertTrue(response.packages().isEmpty());
+
+            // Assert published events
+            List<SyncFromOriginalErrataEvent> events = mqSpy.getEvents(SyncFromOriginalErrataEvent.class);
+            assertEquals(2, events.size());
+            assertEquals(1, events.stream().distinct().count());
+            assertFalse(events.iterator().next().getSyncRequest().async());
+        }
+        finally {
+            mqSpy.uninstall();
+        }
+    }
+
+    /**
+     * Tests syncing packages from original that happens to be also a cloned channel.
+     * Verifies that the code correctly traverses the clone hierarchy to find the errata.
+     */
+    @Test
+    public void testSyncWhenPackagesFromDoubleClonedChannel() {
+        // Create errata with packages in the original channel
         Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
         Package pkg1 = PackageTest.createTestPackage(user.getOrg());
         Package pkg2 = PackageTest.createTestPackage(user.getOrg());
@@ -291,13 +284,25 @@ public class SyncFromOriginalServiceImplTest extends BaseTestCaseWithUser {
         errata.addPackage(pkg2);
         ErrataFactory.addToChannel(errata, originalChannel, user, Set.of(pkg1, pkg2));
 
-        // Sync
-        SyncRequest request = ChannelSoftwareTestUtils.createSyncRequestAsync(SyncOperation.ERRATA_AND_PACKAGES);
-        SyncResponse response = service.sync(user, clonedChannel.getLabel(), request);
+        // Create a double-cloned channel: original -> intermediate -> doubleClone
+        Channel doubleClonedChannel = ChannelFactoryTest.createTestClonedChannel(clonedChannel, user);
 
+        // Sync packages to the double-cloned channel
+        SyncRequest request = ChannelSoftwareTestUtils.createSyncRequest(
+                SyncOperation.ERRATA_AND_PACKAGES, errata.getAdvisoryName()
+        );
+        SyncResponse response = service.sync(user, doubleClonedChannel.getLabel(), request);
+
+        // Verify both errata and packages were synced
         assertNotNull(response);
-        assertTrue(response.erratas().isEmpty());
-        assertTrue(response.packages().isEmpty());
+        assertFalse(response.erratas().isEmpty());
+        assertEquals(1, response.erratas().size());
+
+        // Verify packages were inherited through the clone hierarchy
+        assertFalse(response.packages().isEmpty());
+        assertEquals(2, response.packages().size());
+        assertTrue(response.packages().contains(pkg1));
+        assertTrue(response.packages().contains(pkg2));
     }
 
     /**
@@ -320,7 +325,7 @@ public class SyncFromOriginalServiceImplTest extends BaseTestCaseWithUser {
      * Verifies it returns empty sets
      */
     @Test
-    public void testSyncWhenErrataAndPackagesWhenNoPackagesIsFound() throws Exception {
+    public void testSyncWhenErrataAndPackagesWhenNoPackagesIsFound() {
         // Create errata without packages in original channel
         Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
         originalChannel.addErrata(errata);

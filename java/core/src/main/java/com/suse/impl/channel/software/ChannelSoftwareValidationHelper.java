@@ -14,6 +14,7 @@ import static com.redhat.rhn.common.ExceptionMessage.NOT_INSTANTIABLE;
 import static com.suse.utils.Predicates.allProvided;
 import static com.suse.utils.Predicates.isAbsent;
 
+import com.redhat.rhn.common.RhnRuntimeException;
 import com.redhat.rhn.common.UyuniErrorReport;
 import com.redhat.rhn.domain.channel.Channel;
 import com.redhat.rhn.domain.channel.ChannelFactory;
@@ -23,6 +24,8 @@ import com.redhat.rhn.frontend.xmlrpc.NoSuchChannelException;
 import com.redhat.rhn.frontend.xmlrpc.PermissionCheckFailureException;
 import com.redhat.rhn.manager.errata.ErrataManager;
 import com.redhat.rhn.manager.user.UserManager;
+
+import com.suse.spec.channel.software.dto.SyncRequest;
 
 import java.util.Date;
 
@@ -98,16 +101,14 @@ public class ChannelSoftwareValidationHelper {
      *
      * @param targetChannelLabel Target channel label
      * @param sourceChannelLabel Source channel label (can be null if not required)
-     * @param startDate Start date filter (can be null)
-     * @param endDate End date filter (can be null)
+     * @param syncRequest SyncRequest containing criteria and operation details
      * @param requiresSourceChannel Whether source channel is required for this operation
      * @return UyuniErrorReport with all field validation errors
      */
     public static UyuniErrorReport validateRequestFields(
             String targetChannelLabel,
             String sourceChannelLabel,
-            Date startDate,
-            Date endDate,
+            SyncRequest syncRequest,
             boolean requiresSourceChannel
     ) {
         UyuniErrorReport errorReport = new UyuniErrorReport();
@@ -121,9 +122,24 @@ public class ChannelSoftwareValidationHelper {
             errorReport.register("Source channel label is required");
         }
 
-        // Date range validation
-        if (allProvided(startDate, endDate) && endDate.before(startDate)) {
-            errorReport.register("End date cannot be before start date");
+        // syncRequest internal validation, throwing exception not to register errors back to the user
+        if (isAbsent(syncRequest)) {
+            throw new RhnRuntimeException("SyncRequest not provided");
+        }
+        else {
+            if (isAbsent(syncRequest.operation())) {
+                throw new RhnRuntimeException("SyncOperation not provided");
+            }
+            if (isAbsent(syncRequest.criteria())) {
+                throw new RhnRuntimeException("ErrataCriteria not provided");
+            }
+
+            Date startDate = syncRequest.criteria().startDate();
+            Date endDate = syncRequest.criteria().endDate();
+            // Date range validation
+            if (allProvided(startDate, endDate) && endDate.before(startDate)) {
+                errorReport.register("End date cannot be before start date");
+            }
         }
 
         return errorReport;
@@ -145,4 +161,5 @@ public class ChannelSoftwareValidationHelper {
     private ChannelSoftwareValidationHelper() {
         throw new UnsupportedOperationException(NOT_INSTANTIABLE);
     }
+
 }

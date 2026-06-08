@@ -19,6 +19,7 @@ import com.redhat.rhn.common.messaging.MessageQueue;
 import com.redhat.rhn.domain.channel.Channel;
 import com.redhat.rhn.domain.channel.ChannelFactory;
 import com.redhat.rhn.domain.errata.Errata;
+import com.redhat.rhn.domain.errata.ErrataFactory;
 import com.redhat.rhn.domain.rhnpackage.Package;
 import com.redhat.rhn.domain.user.User;
 import com.redhat.rhn.frontend.events.SyncFromSourceErrataEvent;
@@ -26,7 +27,6 @@ import com.redhat.rhn.manager.channel.ChannelManager;
 import com.redhat.rhn.manager.errata.ErrataManager;
 import com.redhat.rhn.manager.errata.cache.ErrataCacheManager;
 
-import com.suse.persistence.dao.ErrataRepository;
 import com.suse.spec.channel.software.SyncFromSourceService;
 import com.suse.spec.channel.software.dto.SyncRequest;
 import com.suse.spec.channel.software.dto.SyncResponse;
@@ -55,11 +55,7 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
     ) {
         // Acquire data and validate
         UyuniErrorReport errorReport = ChannelSoftwareValidationHelper.validateRequestFields(
-                targetChannelLabel,
-                sourceChannelLabel,
-                request.criteria().startDate(),
-                request.criteria().endDate(),
-                true
+                targetChannelLabel, sourceChannelLabel, request, true
         );
         errorReport.report(logReportingStrategy(this));
         errorReport.report(rpcValidationReportingStrategy());
@@ -84,7 +80,7 @@ public class SyncFromSourceServiceImpl implements SyncFromSourceService {
 
         // All erratas from source that match the search criteria, regardless of whether they already exist in target
         // Set null later to consider all
-        Set<Errata> matchingErratas = ErrataRepository.lookupErrataByChannel(
+        Set<Errata> matchingErratas = ErrataFactory.lookupErrataByChannel(
                     sourceChannel,
                     request.criteria().advisoryNames(),
                     request.criteria().startDate(),

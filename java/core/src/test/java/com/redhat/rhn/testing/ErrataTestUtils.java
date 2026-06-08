@@ -717,6 +717,9 @@ public class ErrataTestUtils {
     // As last_modified field is marked as updatable=false, hibernate ignores the setter
     // need to use native sql to force updating it
     public static void setErrataLastModified(Errata errata, Instant lastModifiedInstant) {
+        // Ensure the errata is persisted before updating
+        HibernateFactory.getSession().flush();
+
         HibernateFactory.getSession().createNativeQuery(
                         "UPDATE rhnErrata SET last_modified = :lastMod WHERE id = :errataId"
                 ).setParameter("lastMod", Timestamp.from(lastModifiedInstant))

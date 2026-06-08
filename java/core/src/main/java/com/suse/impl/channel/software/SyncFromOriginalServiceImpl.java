@@ -29,7 +29,6 @@ import com.redhat.rhn.manager.channel.ChannelManager;
 import com.redhat.rhn.manager.errata.ErrataManager;
 
 import com.suse.impl.channel.software.helper.ErrataResolver;
-import com.suse.persistence.dao.ErrataRepository;
 import com.suse.spec.channel.software.SyncFromOriginalService;
 import com.suse.spec.channel.software.dto.SyncRequest;
 import com.suse.spec.channel.software.dto.SyncResponse;
@@ -37,7 +36,6 @@ import com.suse.spec.channel.software.dto.SyncResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -53,11 +51,7 @@ public class SyncFromOriginalServiceImpl implements SyncFromOriginalService {
     public SyncResponse sync(User user, String targetChannelLabel, SyncRequest request) {
         // Acquire data and validate
         UyuniErrorReport errorReport = ChannelSoftwareValidationHelper.validateRequestFields(
-                targetChannelLabel,
-                null,
-                request.criteria().startDate(),
-                request.criteria().endDate(),
-                false
+                targetChannelLabel, null, request, false
         );
         errorReport.report(logReportingStrategy(this));
         errorReport.report(rpcValidationReportingStrategy());
@@ -96,29 +90,19 @@ public class SyncFromOriginalServiceImpl implements SyncFromOriginalService {
         );
 
         if (request.operation().includesErratas()) {
-            // Clone errata (reuse existing clones)
-            erratas = ErrataManager.cloneErrataForOrg(new ArrayList<>(errataToClone), user.getOrg());
+            // Clone erratas, reusing existing clones
+            erratas = ErrataManager.cloneErrataForOrg(errataToClone, user.getOrg());
 
-            // Link errata to channel
+            // Link erratas to channel
             ErrataManager.linkErrataToChannel(erratas, targetChannel);
-        }
-        else {
-            // PACKAGES_ONLY: Find already cloned errata in the channel
-            Set<Errata> existingErrata = ErrataRepository.lookupErrataByChannel(
-                    targetChannel, request.criteria().advisoryNames(), request.criteria().startDate(), request.criteria().endDate());
-            erratas = new HashSet<>(existingErrata);
         }
 
         if (request.operation().includesPackages()) {
-            packages = syncPackages(erratas, targetChannel, originalChannel, user);
+            packages = syncPackages(errataToClone, targetChannel, originalChannel, user);
         }
 
         return new SyncResponse(erratas, packages);
     }
-
-
-
-
 
     /**
      * Adds packages to a channel for given errata using original channel hierarchy.

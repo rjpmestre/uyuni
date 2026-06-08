@@ -78,7 +78,7 @@ public class PackageCalculatorTest extends BaseTestCaseWithUser {
      * when the errata is already associated with the target channel, and can directly get packages from there.
      */
     @Test
-    void testCalculateFromCloneTreeDirectlyGetsPackages() throws Exception {
+    void testCalculateFromCloneTreeDirectlyGetsPackages() {
         // Create clone hierarchy
         Channel originalChannel = ChannelFactoryTest.createTestChannel(user);
         Channel clonedChannel = ChannelFactoryTest.createTestClonedChannel(originalChannel, user);
@@ -108,7 +108,7 @@ public class PackageCalculatorTest extends BaseTestCaseWithUser {
      * and a second errata is in an intermediate clone.
      */
     @Test
-    void testCalculateFromCloneTreeWalksUpCloneHierarchy() throws Exception {
+    void testCalculateFromCloneTreeWalksUpCloneHierarchy() {
         // Create clone hierarchy: original -> clone1 -> clone2 -> clone3
         Channel originalChannel = ChannelFactoryTest.createTestChannel(user);
         Channel clone1 = ChannelFactoryTest.createTestClonedChannel(originalChannel, user);

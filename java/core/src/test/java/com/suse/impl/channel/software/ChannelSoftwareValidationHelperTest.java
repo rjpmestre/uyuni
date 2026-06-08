@@ -11,12 +11,14 @@
 package com.suse.impl.channel.software;
 
 import static com.redhat.rhn.domain.role.RoleFactory.ORG_ADMIN;
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.redhat.rhn.common.RhnRuntimeException;
 import com.redhat.rhn.common.UyuniErrorReport;
 import com.redhat.rhn.domain.channel.Channel;
 import com.redhat.rhn.domain.channel.ChannelFactoryTest;
@@ -25,9 +27,14 @@ import com.redhat.rhn.domain.user.User;
 import com.redhat.rhn.frontend.xmlrpc.InvalidChannelException;
 import com.redhat.rhn.frontend.xmlrpc.NoSuchChannelException;
 import com.redhat.rhn.frontend.xmlrpc.PermissionCheckFailureException;
+import com.redhat.rhn.manager.errata.AsyncErrataCloneCounter;
 import com.redhat.rhn.testing.BaseTestCaseWithUser;
 import com.redhat.rhn.testing.TestUtils;
 import com.redhat.rhn.testing.UserTestUtils;
+
+import com.suse.spec.channel.software.dto.ErrataCriteria;
+import com.suse.spec.channel.software.dto.SyncOperation;
+import com.suse.spec.channel.software.dto.SyncRequest;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +46,7 @@ import java.util.Date;
 /**
  * Tests for ChannelSoftwareValidationHelper.
  */
-public class ChannelSoftwareValidationHelperTest extends BaseTestCaseWithUser {
+class ChannelSoftwareValidationHelperTest extends BaseTestCaseWithUser {
 
     private User admin;
 
@@ -54,7 +61,7 @@ public class ChannelSoftwareValidationHelperTest extends BaseTestCaseWithUser {
 
     //validateAndLookupChannel
     @Test
-    public void testValidateAndLookupChannelValidChannel() {
+    void testValidateAndLookupChannelValidChannel() {
         Channel channel = ChannelFactoryTest.createTestChannel(admin);
 
         Channel result = ChannelSoftwareValidationHelper.validateAndLookupChannel(admin, channel.getLabel());
@@ -64,7 +71,7 @@ public class ChannelSoftwareValidationHelperTest extends BaseTestCaseWithUser {
     }
 
     @Test
-    public void testValidateAndLookupChannelInvalidLabel() {
+    void testValidateAndLookupChannelInvalidLabel() {
         assertThrows(NoSuchChannelException.class, () ->
             ChannelSoftwareValidationHelper.validateAndLookupChannel(admin, "non-existent-channel")
         );
@@ -72,7 +79,7 @@ public class ChannelSoftwareValidationHelperTest extends BaseTestCaseWithUser {
 
     // validateUserHasPermission
     @Test
-    public void testValidateUserHasPermissionWithPermission() {
+    void testValidateUserHasPermissionWithPermission() {
         Channel channel = ChannelFactoryTest.createTestChannel(admin);
         admin.addPermanentRole(ORG_ADMIN);
 
@@ -81,7 +88,7 @@ public class ChannelSoftwareValidationHelperTest extends BaseTestCaseWithUser {
     }
 
     @Test
-    public void testValidateUserHasPermissionNoPermission() {
+    void testValidateUserHasPermissionNoPermission() {
         Channel channel = ChannelFactoryTest.createTestChannel(admin);
 
         assertThrows(PermissionCheckFailureException.class, () ->
@@ -91,7 +98,7 @@ public class ChannelSoftwareValidationHelperTest extends BaseTestCaseWithUser {
 
     // validateChannelIsCloned
     @Test
-    public void testValidateChannelIsClonedClonedChannel() {
+    void testValidateChannelIsClonedClonedChannel() {
         Channel original = ChannelFactoryTest.createTestChannel(admin);
         Channel cloned = ChannelFactoryTest.createTestClonedChannel(original, admin);
 
@@ -100,7 +107,7 @@ public class ChannelSoftwareValidationHelperTest extends BaseTestCaseWithUser {
     }
 
     @Test
-    public void testValidateChannelIsCloned() {
+    void testValidateChannelIsCloned() {
         Channel channel = ChannelFactoryTest.createTestChannel(admin);
 
         InvalidChannelException ex = assertThrows(InvalidChannelException.class, () ->
@@ -111,7 +118,7 @@ public class ChannelSoftwareValidationHelperTest extends BaseTestCaseWithUser {
 
     // validateOriginalChannelAccessible
     @Test
-    public void testValidateOriginalChannelAccessibleValidOriginal() {
+    void testValidateOriginalChannelAccessibleValidOriginal() {
         Channel original = ChannelFactoryTest.createTestChannel(admin);
 
         // Should not throw
@@ -119,7 +126,7 @@ public class ChannelSoftwareValidationHelperTest extends BaseTestCaseWithUser {
     }
 
     @Test
-    public void testValidateOriginalChannelAccessibleNullOriginal() {
+    void testValidateOriginalChannelAccessibleNullOriginal() {
         InvalidChannelException ex = assertThrows(InvalidChannelException.class, () ->
             ChannelSoftwareValidationHelper.validateOriginalChannelAccessible(null, "target-label")
         );
@@ -128,13 +135,76 @@ public class ChannelSoftwareValidationHelperTest extends BaseTestCaseWithUser {
 
     // validateRequestFields
 
+
     @Test
-    public void testValidateRequestFieldsWithMinimalData() {
+    void testValidateRequestFieldsWithoutSyncRequest() {
+        RhnRuntimeException exception = assertThrows(RhnRuntimeException.class, () ->
+                ChannelSoftwareValidationHelper.validateRequestFields(
+                        TestUtils.randomString(),
+                        null,
+                        null,
+                        false
+                )
+        );
+
+        assertEquals("SyncRequest not provided", exception.getMessage());
+    }
+
+    @Test
+    void testValidateRequestFieldsWithoutSyncOperation() {
+        RhnRuntimeException exception = assertThrows(RhnRuntimeException.class, () ->
+                ChannelSoftwareValidationHelper.validateRequestFields(
+                        TestUtils.randomString(),
+                        null,
+                        new SyncRequest(
+                                new ErrataCriteria(null, null, null),
+                                null,
+                                false,
+                                false,
+                                false
+                        ),
+                        false
+                )
+        );
+
+        assertEquals("SyncOperation not provided", exception.getMessage());
+    }
+
+    @Test
+    void testValidateRequestFieldsWithoutErrataCriteria() {
+        RhnRuntimeException exception = assertThrows(RhnRuntimeException.class, () ->
+                ChannelSoftwareValidationHelper.validateRequestFields(
+                        TestUtils.randomString(),
+                        null,
+                        new SyncRequest(
+                                null,
+                                SyncOperation.ERRATA_AND_PACKAGES,
+                                false,
+                                false,
+                                false
+                        ),
+                        false
+                )
+        );
+
+        assertEquals("ErrataCriteria not provided", exception.getMessage());
+    }
+
+
+    @Test
+    void testValidateRequestFieldsWithMinimalData() {
+        SyncRequest syncRequest = new SyncRequest(
+                new ErrataCriteria(null, null, null),
+                SyncOperation.ERRATA_AND_PACKAGES,
+                false,
+                false,
+                false
+        );
+
         UyuniErrorReport report = ChannelSoftwareValidationHelper.validateRequestFields(
                 TestUtils.randomString(),
                 null,
-                null,
-                null,
+                syncRequest,
                 false
         );
 
@@ -142,13 +212,22 @@ public class ChannelSoftwareValidationHelperTest extends BaseTestCaseWithUser {
     }
 
     @Test
-    public void testValidateRequestFieldsWillFullData() {
+    void testValidateRequestFieldsWillFullData() {
         Instant now = Instant.now();
+        SyncRequest syncRequest = new SyncRequest(
+                new ErrataCriteria(
+                        emptyList(),
+                        Date.from(now.minusSeconds(1)),
+                        Date.from(now)),
+                SyncOperation.ERRATA_AND_PACKAGES,
+                false,
+                false,
+                false
+        );
         UyuniErrorReport report = ChannelSoftwareValidationHelper.validateRequestFields(
                 TestUtils.randomString(),
                 TestUtils.randomString(),
-                Date.from(now.minusSeconds(1)),
-                Date.from(now),
+                syncRequest,
                 true
         );
 
@@ -156,13 +235,23 @@ public class ChannelSoftwareValidationHelperTest extends BaseTestCaseWithUser {
     }
 
     @Test
-    public void testValidateRequestFieldsWhenValidationsFail() {
+    void testValidateRequestFieldsWhenAllUserValidationsFail() {
         Instant now = Instant.now();
+        SyncRequest syncRequest = new SyncRequest(
+                new ErrataCriteria(
+                        emptyList(),
+                        Date.from(now),
+                        Date.from(now.minusSeconds(1))
+                ),
+                SyncOperation.ERRATA_AND_PACKAGES,
+                false,
+                false,
+                false
+        );
         UyuniErrorReport report = ChannelSoftwareValidationHelper.validateRequestFields(
                 null,
                 null,
-                Date.from(now),
-                Date.from(now.minusSeconds(1)),
+                syncRequest,
                 true
         );
 
@@ -173,5 +262,45 @@ public class ChannelSoftwareValidationHelperTest extends BaseTestCaseWithUser {
         assertTrue(Arrays.stream(errorMessages).anyMatch(s -> s.contains("Source channel label is required")));
         assertTrue(Arrays.stream(errorMessages).anyMatch(s -> s.contains("End date cannot be before start date")));
     }
+
+    // validateChannelHasNoPendingAsyncCloneJobs
+    @Test
+    void testValidateChannelHasNoPendingAsyncCloneJobsWhenNoPendingJobs() {
+        Channel channel = ChannelFactoryTest.createTestChannel(admin);
+        ChannelSoftwareValidationHelper.validateChannelHasNoPendingAsyncCloneJobs(channel);
+    }
+
+    @Test
+    void testValidateChannelHasNoPendingAsyncCloneJobsWhenHasPendingJobs() {
+        Channel channel = ChannelFactoryTest.createTestChannel(admin);
+
+        // Simulate pending async job
+        AsyncErrataCloneCounter.getInstance().addAsyncErrataCloneJob(channel.getId());
+
+        try {
+            IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                ChannelSoftwareValidationHelper.validateChannelHasNoPendingAsyncCloneJobs(channel)
+            );
+            assertTrue(ex.getMessage().contains("has pending asynchronous errata clone jobs"));
+            assertTrue(ex.getMessage().contains(channel.getLabel()));
+        }
+        finally {
+            AsyncErrataCloneCounter.getInstance().removeAsyncErrataCloneJob(channel.getId());
+        }
+    }
+
+    @Test
+    void testValidateChannelHasNoPendingAsyncCloneJobsAfterJobCompletion() {
+        Channel channel = ChannelFactoryTest.createTestChannel(admin);
+
+        // Simulate pending async job
+        AsyncErrataCloneCounter.getInstance().addAsyncErrataCloneJob(channel.getId());
+
+        // "Complete" the job
+        AsyncErrataCloneCounter.getInstance().removeAsyncErrataCloneJob(channel.getId());
+
+        ChannelSoftwareValidationHelper.validateChannelHasNoPendingAsyncCloneJobs(channel);
+    }
+
 
 }

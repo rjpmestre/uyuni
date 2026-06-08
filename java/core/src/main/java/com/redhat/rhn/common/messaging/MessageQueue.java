@@ -95,6 +95,9 @@ public class MessageQueue {
 
     private static final int THREAD_POOL_SIZE = Config.get().getInt("java.message_queue.threads", 1);
 
+    // Test-only publish interceptor - captures events without executing them
+    private static PublishInterceptor publishInterceptor = null;
+
     /**
      * Util class so we don't have a usable constructor
      */
@@ -110,6 +113,16 @@ public class MessageQueue {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("publish(EventMessage) - start: {}", msg.getClass().getName());
         }
+
+        // Test-only: intercept and capture without executing
+        if (publishInterceptor != null && msg != null) {
+            publishInterceptor.intercept(msg);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("publish(EventMessage) - intercepted by test spy");
+            }
+            return;  // Don't execute the event
+        }
+
         if (!isMessaging()) {
             startMessaging();
         }
@@ -366,5 +379,25 @@ public class MessageQueue {
         // Handle changes of channel assignments on minions
         MessageQueue.registerAction(new ChannelsChangedEventMessageAction(saltApi),
                 ChannelsChangedEventMessage.class);
+    }
+
+    /**
+     * Test-only interface for intercepting published events without executing them.
+     */
+    public interface PublishInterceptor {
+        /**
+         * Called when an event is published.
+         * @param event the published event
+         */
+        void intercept(EventMessage event);
+    }
+
+    /**
+     * Test-only method to set a publish interceptor.
+     * When set, all published events are captured by the interceptor instead of being executed.
+     * @param interceptor the interceptor to use, or null to disable interception
+     */
+    public static void setPublishInterceptor(PublishInterceptor interceptor) {
+        publishInterceptor = interceptor;
     }
 }

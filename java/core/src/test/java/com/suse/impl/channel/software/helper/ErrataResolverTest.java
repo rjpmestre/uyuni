@@ -69,15 +69,18 @@ public class ErrataResolverTest extends BaseTestCaseWithUser {
      * the resolver returns all erratas from the user's org.
      */
     @Test
-    void testResolveFromCascadingOrgWithoutAdvisoryNameFilter() throws Exception {
-        new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
-        new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
+    void testResolveFromCascadingOrgWithoutAdvisoryNameFilter() {
+        Errata errata1 = new ErrataTestBuilder().orgId(userOrg.getId()).buildAndSave();
+        Errata errata2 = new ErrataTestBuilder().orgId(userOrg.getId()).buildAndSave();
 
         Set<Errata> result = ErrataResolver.resolveFromCascadingOrg(
                 originalChannel, userOrg, null, null, null
         );
 
         assertNotNull(result);
+        // Should include at least the erratas we created (may have more from other tests)
+        assertTrue(result.contains(errata1));
+        assertTrue(result.contains(errata2));
         assertEquals(2, result.size());
     }
 
@@ -85,9 +88,9 @@ public class ErrataResolverTest extends BaseTestCaseWithUser {
      * Tests that when an errata exists in the original channel's org
      */
     @Test
-    void testResolveFromCascadingOrgFallsBackToUserOrg() throws Exception {
+    void testResolveFromCascadingOrgFallsBackToUserOrg() {
         // Create errata in originalChannel's org
-        Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
+        Errata errata = new ErrataTestBuilder().orgId(userOrg.getId()).buildAndSave();
         String advisoryName = errata.getAdvisoryName();
 
         // Resolve
@@ -107,9 +110,9 @@ public class ErrataResolverTest extends BaseTestCaseWithUser {
      * falling back to user org and vendor lookup only.
      */
     @Test
-    void testResolveFromCascadingOrgWithNullOriginalChannel() throws Exception {
+    void testResolveFromCascadingOrgWithNullOriginalChannel() {
         // Create errata in user org
-        Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
+        Errata errata = new ErrataTestBuilder().orgId(userOrg.getId()).buildAndSave();
         String advisoryName = errata.getAdvisoryName();
 
         // Resolve, dont provide original channel
@@ -128,9 +131,9 @@ public class ErrataResolverTest extends BaseTestCaseWithUser {
      * the resolver correctly returns the vendor version.
      */
     @Test
-    void testResolveFromCascadingOrgFallsBackToVendor() throws Exception {
+    void testResolveFromCascadingOrgFallsBackToVendor() {
         // Create errata without org
-        Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
+        Errata errata = new ErrataTestBuilder().orgId(userOrg.getId()).buildAndSave();
         errata.setOrg(null);
         TestUtils.saveAndFlush(errata);
         String advisoryName = errata.getAdvisoryName();
@@ -150,7 +153,7 @@ public class ErrataResolverTest extends BaseTestCaseWithUser {
      * Tests that the resolver handles errata using date filters.
      */
     @Test
-    void testResolveFromCascadingOrgWithDateFilters() throws Exception {
+    void testResolveFromCascadingOrgWithDateFilters() {
         LocalDate localDate = LocalDate.of(2022, 5, 29);
         ZonedDateTime startOfDayZoneDateTime = localDate.atStartOfDay(ZoneId.systemDefault());
         ZonedDateTime endOfDayZoneDateTime = startOfDayZoneDateTime.plusDays(1).minusNanos(1);
@@ -159,17 +162,17 @@ public class ErrataResolverTest extends BaseTestCaseWithUser {
         Instant endDate =  endOfDayZoneDateTime.toInstant();
 
         // Erratas last modified at exact time boundaries should not be considered
-        Errata atStartErrata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
+        Errata atStartErrata = new ErrataTestBuilder().orgId(userOrg.getId()).buildAndSave();
         ErrataTestUtils.setErrataLastModified(atStartErrata, startDate);
 
-        Errata atEndErrata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
+        Errata atEndErrata = new ErrataTestBuilder().orgId(userOrg.getId()).buildAndSave();
         ErrataTestUtils.setErrataLastModified(atEndErrata, endDate);
 
         // A couple of erratas just a sec within the boundaries
-        Errata afterStartErrata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
+        Errata afterStartErrata = new ErrataTestBuilder().orgId(userOrg.getId()).buildAndSave();
         ErrataTestUtils.setErrataLastModified(afterStartErrata, startOfDayZoneDateTime.plusSeconds(1).toInstant());
 
-        Errata beforeEndErrata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
+        Errata beforeEndErrata = new ErrataTestBuilder().orgId(userOrg.getId()).buildAndSave();
         ErrataTestUtils.setErrataLastModified(beforeEndErrata, endDate.minusSeconds(1));
 
         List<String> advisoryNames = List.of(

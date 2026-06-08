@@ -16,9 +16,8 @@ import com.redhat.rhn.domain.channel.Channel;
 import com.redhat.rhn.domain.channel.ChannelFactory;
 import com.redhat.rhn.domain.errata.Errata;
 import com.redhat.rhn.domain.rhnpackage.Package;
+import com.redhat.rhn.domain.rhnpackage.PackageFactory;
 import com.redhat.rhn.domain.user.User;
-
-import com.suse.persistence.dao.PackageRepository;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,7 +57,7 @@ public final class PackageCalculator {
             }
 
             // Get all packages from this errata in the original channel
-            List<Package> packages = PackageRepository.findByErrataInChannel(original, errata, user.getOrg());
+            List<Package> packages = PackageFactory.findByErrataInChannel(original, errata, user.getOrg());
             packages.removeAll(excludedPackages);
             packagesPerErrata.put(errata, packages);
         }
@@ -77,13 +76,11 @@ public final class PackageCalculator {
      */
     public static Set<Package> calculateFromVendorMatch(Channel targetChannel, Set<Errata> erratas, User user) {
         Set<Package> allPackages = new HashSet<>();
-
         for (Errata errata : erratas) {
             allPackages.addAll(
-                PackageRepository.findByErrataWithNameArchMatchInChannelForUser(targetChannel, errata, user)
+                    PackageFactory.findByErrataWithNameArchMatchInChannelForUser(targetChannel, errata, user)
             );
         }
-
         return allPackages;
     }
 

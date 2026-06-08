@@ -32,8 +32,12 @@ public record SyncRequest(
 
     @Override
     public boolean equals(Object oIn) {
-        if (this == oIn) return true;
-        if (oIn == null || getClass() != oIn.getClass()) return false;
+        if (this == oIn) {
+            return true;
+        }
+        if (oIn == null || getClass() != oIn.getClass()) {
+            return false;
+        }
         SyncRequest that = (SyncRequest) oIn;
         return new EqualsBuilder().append(async, that.async).append(alignModules, that.alignModules)
                 .append(forceRefresh, that.forceRefresh).append(criteria, that.criteria)

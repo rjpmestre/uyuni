@@ -2314,29 +2314,29 @@ public class ErrataManager extends BaseManager {
      * - If vendor errata with existing clone in org: reuse existing clone
      * - If vendor errata without clone: create new clone via cloneErrataFaster
      *
-     * @param errataToClone List of errata to clone
+     * @param erratas Set of errata to clone
      * @param org Organization to clone for
      * @return Set of cloned errata (may include newly created and existing clones)
      */
-    public static Set<Errata> cloneErrataForOrg(List<Errata> errataToClone, Org org) {
-        Set<Errata> errataToAdd = new HashSet<>();
-        for (Errata toClone : errataToClone) {
+    public static Set<Errata> cloneErrataForOrg(Set<Errata> erratas, Org org) {
+        Set<Errata> clonedErratas = new HashSet<>();
+        for (Errata toClone : erratas) {
             if (toClone.isCloned()) {
-                errataToAdd.add(toClone);
+                clonedErratas.add(toClone);
             }
             else {
-                List<Errata> clones = ErrataFactory.lookupErrataByOriginal(org, toClone);
-                if (clones.isEmpty()) {
-                    Long clonedId = ErrataHelper.cloneErrataFaster(toClone.getId(), org);
-                    Errata clonedErrata = ErrataFactory.lookupById(clonedId);
-                    errataToAdd.add(clonedErrata);
+                List<Errata> existingClones = ErrataFactory.lookupErrataByOriginal(org, toClone);
+                if (existingClones.isEmpty()) {
+                    Long clonedErrataId = ErrataHelper.cloneErrataFaster(toClone.getId(), org);
+                    Errata clonedErrata = ErrataFactory.lookupById(clonedErrataId);
+                    clonedErratas.add(clonedErrata);
                 }
                 else {
-                    errataToAdd.add(clones.get(0));
+                    clonedErratas.add(existingClones.get(0));
                 }
             }
         }
-        return errataToAdd;
+        return clonedErratas;
     }
 
     /**

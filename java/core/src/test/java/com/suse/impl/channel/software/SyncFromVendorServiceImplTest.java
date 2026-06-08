@@ -24,9 +24,11 @@ import com.redhat.rhn.domain.org.Org;
 import com.redhat.rhn.domain.rhnpackage.Package;
 import com.redhat.rhn.domain.rhnpackage.PackageTest;
 import com.redhat.rhn.domain.user.User;
+import com.redhat.rhn.frontend.events.SyncFromVendorErrataEvent;
 import com.redhat.rhn.frontend.xmlrpc.NoSuchChannelException;
 import com.redhat.rhn.frontend.xmlrpc.PermissionCheckFailureException;
 import com.redhat.rhn.testing.BaseTestCaseWithUser;
+import com.redhat.rhn.testing.MessageQueueSpy;
 import com.redhat.rhn.testing.UserTestUtils;
 
 import com.suse.spec.channel.software.dto.SyncOperation;
@@ -35,6 +37,8 @@ import com.suse.spec.channel.software.dto.SyncResponse;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 /**
  * Tests for SyncFromVendorServiceImpl
@@ -89,9 +93,11 @@ public class SyncFromVendorServiceImplTest extends BaseTestCaseWithUser {
      * Verifies that erratas are cloned via cascading org lookup and packages set is empty.
      */
     @Test
-    public void testSyncWhenErrataOnly() throws Exception {
+    public void testSyncWhenErrataOnly() {
         // Create vendor errata
-        Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
+        Errata errata = new ErrataTestBuilder()
+                .orgId(user.getOrg().getId())
+                .buildAndSave();
         errata.setOrg(null);
 
         // Sync errata only
@@ -120,20 +126,36 @@ public class SyncFromVendorServiceImplTest extends BaseTestCaseWithUser {
      * Repeats same setup as {@link SyncFromVendorServiceImplTest#testSyncWhenErrataOnly}.
      */
     @Test
-    public void testSyncWhenErrataOnlyAsynchronously() throws Exception {
-        // Create vendor errata
-        Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
-        errata.setOrg(null);
+    public void testSyncWhenErrataOnlyAsynchronously() {
+        MessageQueueSpy mqSpy = new MessageQueueSpy();
+        mqSpy.install();
+        try {
+            // Create vendor errata
+            Errata errata = new ErrataTestBuilder()
+                    .orgId(user.getOrg().getId())
+                    .buildAndSave();
+            errata.setOrg(null);
 
-        // Sync errata only
-        SyncRequest request = ChannelSoftwareTestUtils.createSyncRequestAsync(
-                SyncOperation.ERRATA_ONLY, errata.getAdvisoryName()
-        );
-        SyncResponse response = service.sync(user, targetChannel.getLabel(), request);
+            // Sync errata only asynchronously
+            SyncRequest request = ChannelSoftwareTestUtils.createSyncRequestAsync(
+                    SyncOperation.ERRATA_ONLY, errata.getAdvisoryName()
+            );
+            SyncResponse response = service.sync(user, targetChannel.getLabel(), request);
 
-        assertNotNull(response);
-        assertTrue(response.erratas().isEmpty());
-        assertTrue(response.packages().isEmpty());
+            // Async response should be empty (work happens in background)
+            assertNotNull(response);
+            assertTrue(response.erratas().isEmpty());
+            assertTrue(response.packages().isEmpty());
+
+            // Verify event was published
+            List<SyncFromVendorErrataEvent> events = mqSpy.getEvents(SyncFromVendorErrataEvent.class);
+            assertEquals(1, events.size());
+            assertEquals(user.getId(), events.get(0).getUserId());
+            assertEquals(targetChannel.getLabel(), events.get(0).getTargetChannelLabel());
+        }
+        finally {
+            mqSpy.uninstall();
+        }
     }
 
     // PACKAGES_ONLY
@@ -143,9 +165,12 @@ public class SyncFromVendorServiceImplTest extends BaseTestCaseWithUser {
      * Verifies that only packages matching existing name+arch in target are selected.
      */
     @Test
-    public void testSyncWhenPackagesOnly() throws Exception {
-        // Create vendor errata with packages
-        Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
+    public void testSyncWhenPackagesOnly() {
+        // Create vendor errata with packages and unique advisory
+        Errata errata = new ErrataTestBuilder()
+                .orgId(user.getOrg().getId())
+                .advisory("VENDOR-PACKAGES-ONLY-" + System.nanoTime())
+                .buildAndSave();
         Package pkg1 = PackageTest.createTestPackage(userOrg);
         Package pkg2 = PackageTest.createTestPackage(userOrg);
         errata.addPackage(pkg1);
@@ -153,7 +178,7 @@ public class SyncFromVendorServiceImplTest extends BaseTestCaseWithUser {
         errata.setOrg(null);  // Vendor errata
 
         // Add one package to target
-        targetChannel.getPackages().add(pkg1);
+        targetChannel.addPackage(pkg1);
 
         // Sync
         SyncRequest request = ChannelSoftwareTestUtils.createSyncRequest(
@@ -177,27 +202,42 @@ public class SyncFromVendorServiceImplTest extends BaseTestCaseWithUser {
      * Repeats same setup as {@link SyncFromVendorServiceImplTest#testSyncWhenPackagesOnly}.
      */
     @Test
-    public void testSyncWhenPackagesOnlyAsynchronously() throws Exception {
-        // Create vendor errata with packages
-        Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
-        Package pkg1 = PackageTest.createTestPackage(userOrg);
-        Package pkg2 = PackageTest.createTestPackage(userOrg);
-        errata.addPackage(pkg1);
-        errata.addPackage(pkg2);
-        errata.setOrg(null);  // Vendor errata
+    public void testSyncWhenPackagesOnlyAsynchronously() {
+        MessageQueueSpy mqSpy = new MessageQueueSpy();
+        mqSpy.install();
+        try {
+            // Create vendor errata with packages
+            Errata errata = new ErrataTestBuilder()
+                    .orgId(user.getOrg().getId())
+                    .buildAndSave();
+            Package pkg1 = PackageTest.createTestPackage(userOrg);
+            Package pkg2 = PackageTest.createTestPackage(userOrg);
+            errata.addPackage(pkg1);
+            errata.addPackage(pkg2);
+            errata.setOrg(null);  // Vendor errata
 
-        // Add one package to target
-        targetChannel.getPackages().add(pkg1);
+            // Add one package to target
+            targetChannel.addPackage(pkg1);
 
-        // Sync
-        SyncRequest request = ChannelSoftwareTestUtils.createSyncRequestAsync(
-                SyncOperation.PACKAGES_ONLY, errata.getAdvisoryName()
-        );
-        SyncResponse response = service.sync(user, targetChannel.getLabel(), request);
+            // Sync asynchronously
+            SyncRequest request = ChannelSoftwareTestUtils.createSyncRequestAsync(
+                    SyncOperation.PACKAGES_ONLY, errata.getAdvisoryName()
+            );
+            SyncResponse response = service.sync(user, targetChannel.getLabel(), request);
 
-        assertNotNull(response);
-        assertTrue(response.erratas().isEmpty());
-        assertTrue(response.packages().isEmpty());
+            // Async response should be empty (work happens in background)
+            assertNotNull(response);
+            assertTrue(response.erratas().isEmpty());
+            assertTrue(response.packages().isEmpty());
+
+            // Verify event was published
+            List<SyncFromVendorErrataEvent> events = mqSpy.getEvents(SyncFromVendorErrataEvent.class);
+            assertEquals(1, events.size());
+            assertEquals(SyncOperation.PACKAGES_ONLY, events.get(0).getSyncRequest().operation());
+        }
+        finally {
+            mqSpy.uninstall();
+        }
     }
 
     // ERRATA_AND_PACKAGES
@@ -207,7 +247,7 @@ public class SyncFromVendorServiceImplTest extends BaseTestCaseWithUser {
      * Verifies that both erratas and packages are cloned using vendor match strategy.
      */
     @Test
-    public void testSyncWhenErrataAndPackages() throws Exception {
+    public void testSyncWhenErrataAndPackages() {
         // Create a vendor errata with two packages
         Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
         Package pkg1 = PackageTest.createTestPackage(userOrg);
@@ -221,7 +261,7 @@ public class SyncFromVendorServiceImplTest extends BaseTestCaseWithUser {
         existingPkg1.setPackageName(pkg1.getPackageName());
         existingPkg1.setPackageArch(pkg1.getPackageArch());
 
-        targetChannel.getPackages().add(existingPkg1);
+        targetChannel.addPackage(existingPkg1);
 
         // Sync
         SyncRequest request = ChannelSoftwareTestUtils.createSyncRequest(SyncOperation.ERRATA_AND_PACKAGES);
@@ -252,29 +292,47 @@ public class SyncFromVendorServiceImplTest extends BaseTestCaseWithUser {
      * Repeats same setup as {@link SyncFromVendorServiceImplTest#testSyncWhenErrataAndPackages}.
      */
     @Test
-    public void testSyncWhenErrataAndPackagesAsynchronously() throws Exception {
-        // Create a vendor errata with two packages
-        Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
-        Package pkg1 = PackageTest.createTestPackage(userOrg);
-        Package pkg2 = PackageTest.createTestPackage(userOrg);
-        errata.addPackage(pkg1);
-        errata.addPackage(pkg2);
-        errata.setOrg(null);  // Vendor errata
+    public void testSyncWhenErrataAndPackagesAsynchronously() {
+        MessageQueueSpy mqSpy = new MessageQueueSpy();
+        mqSpy.install();
+        try {
+            // Create vendor errata
+            Errata errata = new ErrataTestBuilder()
+                    .orgId(user.getOrg().getId())
+                    .buildAndSave();
+            Package pkg1 = PackageTest.createTestPackage(userOrg);
+            Package pkg2 = PackageTest.createTestPackage(userOrg);
 
-        // Setup target channel to have package matching pkg1's name+arch
-        Package existingPkg1 = PackageTest.createTestPackage(userOrg);
-        existingPkg1.setPackageName(pkg1.getPackageName());
-        existingPkg1.setPackageArch(pkg1.getPackageArch());
+            // Create a vendor errata with two packages
+            errata.addPackage(pkg1);
+            errata.addPackage(pkg2);
+            errata.setOrg(null);  // Vendor errata
 
-        targetChannel.getPackages().add(existingPkg1);
+            // Setup target channel to have package matching pkg1's name+arch
+            Package existingPkg1 = PackageTest.createTestPackage(userOrg);
+            existingPkg1.setPackageName(pkg1.getPackageName());
+            existingPkg1.setPackageArch(pkg1.getPackageArch());
 
-        // Sync
-        SyncRequest request = ChannelSoftwareTestUtils.createSyncRequestAsync(SyncOperation.ERRATA_AND_PACKAGES);
-        SyncResponse response = service.sync(user, targetChannel.getLabel(), request);
+            // Add one package to target
+            targetChannel.addPackage(existingPkg1);
 
-        assertNotNull(response);
-        assertTrue(response.erratas().isEmpty());
-        assertTrue(response.packages().isEmpty());
+            // Sync asynchronously
+            SyncRequest request = ChannelSoftwareTestUtils.createSyncRequestAsync(SyncOperation.ERRATA_AND_PACKAGES);
+            SyncResponse response = service.sync(user, targetChannel.getLabel(), request);
+
+            // Async response should be empty (work happens in background)
+            assertNotNull(response);
+            assertTrue(response.erratas().isEmpty());
+            assertTrue(response.packages().isEmpty());
+
+            // Verify event was published with correct parameters
+            List<SyncFromVendorErrataEvent> events = mqSpy.getEvents(SyncFromVendorErrataEvent.class);
+            assertEquals(1, events.size());
+            assertEquals(SyncOperation.ERRATA_AND_PACKAGES, events.get(0).getSyncRequest().operation());
+        }
+        finally {
+            mqSpy.uninstall();
+        }
     }
 
     /**
@@ -299,7 +357,7 @@ public class SyncFromVendorServiceImplTest extends BaseTestCaseWithUser {
      * Verifies that response contains empty sets.
      */
     @Test
-    public void testSyncWhenErrataAndPackagesWhenNoPackagesIsFound() throws Exception {
+    public void testSyncWhenErrataAndPackagesWhenNoPackagesIsFound() {
         // Create vendor errata
         Errata errata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
         errata.setOrg(null);
@@ -317,6 +375,41 @@ public class SyncFromVendorServiceImplTest extends BaseTestCaseWithUser {
         assertTrue(syncErrata.getCves().containsAll(errata.getCves()));
         assertTrue(syncErrata.getPackages().containsAll(errata.getPackages()));
         assertTrue(syncErrata.getAdvisoryName().contains(errata.getAdvisoryName()));
+        assertTrue(response.packages().isEmpty());
+    }
+
+    /**
+     * Tests syncing vendor erratas where target channel resolves existing erratas
+     * by cascade looking up to the original channel, that happens also to be a clone.
+     */
+    @Test
+    public void testSyncWhenTargetIsClonedChannel() {
+        // Create a cloned channel (instead of the usual non-cloned target)
+        Channel originalChan = ChannelFactoryTest.createTestChannel(user);
+        Channel clonedTarget = ChannelFactoryTest.createTestClonedChannel(originalChan, user);
+
+        // Create vendor errata
+        Errata vendorErrata = new ErrataTestBuilder().orgId(user.getOrg().getId()).buildAndSave();
+        vendorErrata.setOrg(null);
+
+        // Create an errata in the original channel that matches the vendor errata name
+        Errata originalErrata = new ErrataTestBuilder()
+                .orgId(user.getOrg().getId())
+                .advisory(vendorErrata.getAdvisoryName())
+                .buildAndSave();
+        originalChan.addErrata(originalErrata);
+
+        // Sync vendor errata to the cloned channel
+        SyncRequest request = ChannelSoftwareTestUtils.createSyncRequest(
+                SyncOperation.ERRATA_ONLY, vendorErrata.getAdvisoryName()
+        );
+        SyncResponse response = service.sync(user, clonedTarget.getLabel(), request);
+
+        // Verify errata was synced (resolves vendor -> original -> user org hierarchy)
+        assertNotNull(response);
+        assertFalse(response.erratas().isEmpty());
+        Errata syncErrata = response.erratas().iterator().next();
+        assertTrue(syncErrata.isCloned());
         assertTrue(response.packages().isEmpty());
     }
 

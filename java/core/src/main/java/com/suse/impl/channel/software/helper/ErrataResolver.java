@@ -15,9 +15,8 @@ import static com.suse.utils.Predicates.isProvided;
 
 import com.redhat.rhn.domain.channel.Channel;
 import com.redhat.rhn.domain.errata.Errata;
+import com.redhat.rhn.domain.errata.ErrataFactory;
 import com.redhat.rhn.domain.org.Org;
-
-import com.suse.persistence.dao.ErrataRepository;
 
 import java.util.Date;
 import java.util.HashMap;
@@ -54,11 +53,11 @@ public final class ErrataResolver {
     ) {
         // Fetch all erratas from all three sources we consider
         Set<Errata> fromOriginalOrg = originalChannel != null && originalChannel.getOrg() != null ?
-                ErrataRepository.lookupErrataByOrg(originalChannel.getOrg(), advisoryNames, startDate, endDate) :
+                ErrataFactory.lookupErrataByOrg(originalChannel.getOrg(), advisoryNames, startDate, endDate) :
                 new HashSet<>();
 
-        Set<Errata> fromUserOrg = ErrataRepository.lookupErrataByOrg(userOrg, advisoryNames, startDate, endDate);
-        Set<Errata> fromVendor = ErrataRepository.lookupErrataFromVendor(advisoryNames, startDate, endDate);
+        Set<Errata> fromUserOrg = ErrataFactory.lookupErrataByOrg(userOrg, advisoryNames, startDate, endDate);
+        Set<Errata> fromVendor = ErrataFactory.lookupErrataFromVendor(advisoryNames, startDate, endDate);
 
         // Build an errata map with the highest priority errata versions
         // Priority: original org > user org > vendor (later puts override earlier ones)
