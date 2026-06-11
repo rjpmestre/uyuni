@@ -19,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import com.redhat.rhn.domain.role.RoleFactory;
-import com.redhat.rhn.domain.user.AddressType;
 import com.redhat.rhn.domain.user.User;
 import com.redhat.rhn.domain.user.UserFactory;
 import com.redhat.rhn.frontend.struts.RequestContext;
@@ -92,10 +91,9 @@ public class EditAddressActionTest extends RhnBaseTestCase {
         request.addParameter("uid", userIdRaw);
     }
 
-    private void executeAction(String addressType) {
+    private void executeAction() {
 
         mapping.addForwardConfig(success);
-        form.set("type", addressType);
         form.set("phone", "650-555-1212");
         form.set("fax", "650-555-1212");
         String newAddr1 = "444 Castro St " + TestUtils.randomString();
@@ -117,11 +115,9 @@ public class EditAddressActionTest extends RhnBaseTestCase {
     @Test
     public void testPerformExecuteNewAddressFailure() {
         setUpFailure();
-        // Creating a user automatically creates a MARKETING address, so as long
-        // as that is the only address in the User, we know there is no SHIPPING
-        // address.
+        // Creating a user automatically creates an address
         try {
-            executeAction(AddressType.ADDRESS_TYPE_MARKETING.getType());
+            executeAction();
             fail("Should have failed.");
         }
         catch (RuntimeException e) {
@@ -135,6 +131,6 @@ public class EditAddressActionTest extends RhnBaseTestCase {
         // Creating a user automatically creates a MARKETING address, so as long
         // as that is the only address in the User, we know there is no SHIPPING
         // address.
-        executeAction(AddressType.ADDRESS_TYPE_MARKETING.getType());
+        executeAction();
     }
 }

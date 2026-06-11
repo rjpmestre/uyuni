@@ -20,8 +20,7 @@ import java.io.Serializable;
 import java.util.Date;
 
 /**
- * Class Address that reflects the DB representation of WEB_USER_SITE_INFO
- * and ancillary tables.
+ * Class Address that reflects the DB representation of WEB_USER_SITE_INFO.
  * DB table: WEB_USER_SITE_INFO
  */
 public interface Address extends Serializable {
@@ -127,31 +126,6 @@ public interface Address extends Serializable {
      * @param faxIn New value for fax
      */
     void setFax(String faxIn);
-
-    /**
-     * Getter for isPoBox
-     * @return isPoBox
-     */
-    String getIsPoBox();
-
-    /**
-     * Setter for isPoBox
-     * @param isPoBoxIn New value for isPoBox
-     */
-    void setIsPoBox(String isPoBoxIn);
-
-    /**
-     * Getter for type
-     * @return Type
-     */
-    AddressType getType();
-
-    /**
-     * Sets the type of Address
-     * @param addressType New value for type
-     */
-    void setType(AddressType addressType);
-
 
     /**
      * Getter for created

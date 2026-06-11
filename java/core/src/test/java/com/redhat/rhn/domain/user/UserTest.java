@@ -121,7 +121,8 @@ public class UserTest extends RhnJmockBaseTestCase {
     @Test
     public void testAddAddress() {
         User usr = UserTestUtils.createUser(this);
-        Address addr = UserTestUtils.createTestAddress(usr);
+        Address addr = UserTestUtils.createTestAddress();
+        usr.setAddress(addr);
         UserFactory.save(usr);
         assertTrue(addr.getId() != 0);
     }

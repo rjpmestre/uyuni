@@ -16,7 +16,6 @@ package com.redhat.rhn.frontend.action.user;
 
 import com.redhat.rhn.common.localization.LocalizationService;
 import com.redhat.rhn.domain.user.User;
-import com.redhat.rhn.frontend.action.common.BadParameterException;
 import com.redhat.rhn.frontend.struts.RequestContext;
 import com.redhat.rhn.frontend.struts.RhnAction;
 import com.redhat.rhn.frontend.struts.RhnHelper;
@@ -46,12 +45,7 @@ public class EditAddressSetupAction extends RhnAction {
         RequestContext requestContext = new RequestContext(request);
 
         DynaActionForm form = (DynaActionForm)formIn;
-        String type = request.getParameter("type");
         Long uid = requestContext.getRequiredParam("uid");
-        if (type == null) {
-            throw new BadParameterException(
-                "Invalid type parameter with null value");
-        }
 
         User user = UserManager.lookupUser(requestContext.getCurrentUser(), uid);
         request.setAttribute(RhnHelper.TARGET_USER, user);
@@ -68,8 +62,7 @@ public class EditAddressSetupAction extends RhnAction {
         }
         form.set("typedisplay",
             LocalizationService.getInstance().
-                getMessage("address type " + type));
-        form.set("type", type);
+                getMessage("address type M"));
         // set the Country map
         request.setAttribute(
             "availableCountries", UserActionHelper.getCountries());

@@ -16,6 +16,8 @@
 
 package com.redhat.rhn.domain.user.legacy;
 
+import static java.util.Optional.ofNullable;
+
 import com.redhat.rhn.common.conf.Config;
 import com.redhat.rhn.common.conf.ConfigDefaults;
 import com.redhat.rhn.common.localization.LocalizationService;
@@ -92,6 +94,7 @@ import jakarta.persistence.Transient;
 public class UserImpl extends BaseDomainHelper implements User {
 
     private static final Logger LOG = LogManager.getLogger(UserImpl.class);
+    public static final String USER_HAS_NO_ADDRESS = "User has no address";
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "web_contact_seq")
@@ -177,6 +180,7 @@ public class UserImpl extends BaseDomainHelper implements User {
     @Transient
     private Boolean wasOrgAdmin;
 
+    //TODO RPM get rid of this
     @Transient
     private transient EnterpriseUser euser;
 
@@ -809,7 +813,7 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public String getPhone() {
-        return getAddress().getPhone();
+        return ofNullable(getAddress()).map(Address::getPhone).orElse(null);
     }
 
     /**
@@ -818,7 +822,11 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public void setPhone(String phoneIn) {
-        getAddress().setPhone(phoneIn);
+        Address address = getAddress();
+        if (address == null) {
+            throw new IllegalStateException(USER_HAS_NO_ADDRESS);
+        }
+        address.setPhone(phoneIn);
     }
 
     /**
@@ -827,7 +835,7 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public String getFax() {
-        return getAddress().getFax();
+        return ofNullable(getAddress()).map(Address::getFax).orElse(null);
     }
 
     /**
@@ -836,7 +844,11 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public void setFax(String faxIn) {
-        getAddress().setFax(faxIn);
+        Address address = getAddress();
+        if (address == null) {
+            throw new IllegalStateException(USER_HAS_NO_ADDRESS);
+        }
+        address.setFax(faxIn);
     }
 
     /**
@@ -911,7 +923,7 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public String getAddress1() {
-        return getAddress().getAddress1();
+        return ofNullable(getAddress()).map(Address::getAddress1).orElse(null);
     }
 
     /**
@@ -920,7 +932,11 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public void setAddress1(String address1In) {
-        getAddress().setAddress1(address1In);
+        Address address = getAddress();
+        if (address == null) {
+            throw new IllegalStateException(USER_HAS_NO_ADDRESS);
+        }
+        address.setAddress1(address1In);
     }
 
     /**
@@ -929,7 +945,7 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public String getAddress2() {
-        return getAddress().getAddress2();
+        return ofNullable(getAddress()).map(Address::getAddress2).orElse(null);
     }
 
     /**
@@ -938,7 +954,12 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public void setAddress2(String address2In) {
-        getAddress().setAddress2(address2In);
+
+        Address address = getAddress();
+        if (address == null) {
+            throw new IllegalStateException(USER_HAS_NO_ADDRESS);
+        }
+        address.setAddress2(address2In);
     }
 
     /**
@@ -947,7 +968,7 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public String getCity() {
-        return getAddress().getCity();
+        return ofNullable(getAddress()).map(Address::getCity).orElse(null);
     }
 
     /**
@@ -956,7 +977,11 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public void setCity(String cityIn) {
-        getAddress().setCity(cityIn);
+        Address address = getAddress();
+        if (address == null) {
+            throw new IllegalStateException(USER_HAS_NO_ADDRESS);
+        }
+        address.setCity(cityIn);
     }
 
     /**
@@ -974,7 +999,11 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public void setState(String stateIn) {
-        getAddress().setState(stateIn);
+        Address address = getAddress();
+        if (address == null) {
+            throw new IllegalStateException(USER_HAS_NO_ADDRESS);
+        }
+        address.setState(stateIn);
     }
 
     /**
@@ -983,7 +1012,7 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public String getZip() {
-        return getAddress().getZip();
+        return ofNullable(getAddress()).map(Address::getZip).orElse(null);
     }
 
     /**
@@ -992,7 +1021,11 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public void setZip(String zipIn) {
-        getAddress().setZip(zipIn);
+        Address address = getAddress();
+        if (address == null) {
+            throw new IllegalStateException(USER_HAS_NO_ADDRESS);
+        }
+        address.setZip(zipIn);
     }
 
     /**
@@ -1001,7 +1034,7 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public String getCountry() {
-        return getAddress().getCountry();
+        return ofNullable(getAddress()).map(Address::getCountry).orElse(null);
     }
 
     /**
@@ -1010,27 +1043,13 @@ public class UserImpl extends BaseDomainHelper implements User {
      */
     @Override
     public void setCountry(String countryIn) {
-        getAddress().setCountry(countryIn);
+        Address address = getAddress();
+        if (address == null) {
+            throw new IllegalStateException(USER_HAS_NO_ADDRESS);
+        }
+        address.setCountry(countryIn);
     }
 
-
-    /**
-     * Getter for isPoBox
-     * @return isPoBox
-     */
-    @Override
-    public String getIsPoBox() {
-        return getAddress().getIsPoBox();
-    }
-
-    /**
-     * Setter for isPoBox
-     * @param isPoBoxIn New value for isPoBox
-     */
-    @Override
-    public void setIsPoBox(String isPoBoxIn) {
-        getAddress().setIsPoBox(isPoBoxIn);
-    }
 
     /**
      * {@inheritDoc}
@@ -1059,62 +1078,23 @@ public class UserImpl extends BaseDomainHelper implements User {
         hiddenPanes = p;
     }
 
-    protected void setAddress(Address addIn) {
-        addresses.clear();
-        AddressImpl address = (AddressImpl) addIn;
-        address.setUser(this);
-        addresses.add(address);
-    }
-
-    protected Address getAddress() {
-        Address baddr = null;
-        Address addr = null;
-        Address[] addrA = addresses.toArray(new Address[addresses.size()]);
+    @Override
+    public void setAddress(Address addressIn) {
         if (!addresses.isEmpty()) {
-            for (Address addressIn : addrA) {
-                if (addressIn.getType().equals(Address.TYPE_MARKETING)) {
-                    addr = addressIn;
-                }
-                if (addressIn.getType().equals("B")) {
-                    baddr = addressIn;
-                }
-            }
+            AddressImpl current = addresses.iterator().next();
+            current.setUser(null);
+            addresses.clear();
         }
-        if (addr == null) {
-            addr = UserFactory.createAddress();
-            if (baddr != null) {
-                addr.setAddress1(baddr.getAddress1());
-                addr.setAddress2(baddr.getAddress2());
-                addr.setCity(baddr.getCity());
-                addr.setCountry(baddr.getCountry());
-                addr.setFax(baddr.getFax());
-                addr.setIsPoBox(baddr.getIsPoBox());
-                addr.setPhone(baddr.getPhone());
-                addr.setState(baddr.getState());
-                addr.setZip(baddr.getZip());
-            }
-            AddressImpl address = (AddressImpl) addr;
+
+        if (addressIn != null) {
+            AddressImpl address = (AddressImpl) addressIn;
             address.setUser(this);
             addresses.add(address);
         }
-        return addr;
     }
 
-    /**
-     * Set the addresses.
-     * @param s the set
-     */
-    protected void setAddresses(Set<AddressImpl> s) {
-        addresses = s;
-        addresses.forEach(address -> address.setUser(this));
-    }
-
-    /**
-     * Get the addresses
-     * @return Set of addresses
-     */
-    protected Set<AddressImpl> getAddresses() {
-        return addresses;
+    protected Address getAddress() {
+        return addresses.stream().findFirst().orElse(null);
     }
 
     /**
@@ -1362,10 +1342,17 @@ public class UserImpl extends BaseDomainHelper implements User {
         */
         @Override
         public void setAddress(Address addressIn) {
-            addresses.clear();
-            AddressImpl address = (AddressImpl) addressIn;
-            address.setUser(UserImpl.this);
-            addresses.add(address);
+            if (!addresses.isEmpty()) {
+                AddressImpl current = addresses.iterator().next();
+                current.setUser(null);
+                addresses.clear();
+            }
+
+            if (addressIn != null) {
+                AddressImpl address = (AddressImpl) addressIn;
+                address.setUser(UserImpl.this);
+                addresses.add(address);
+            }
         }
 
         /**
@@ -1374,37 +1361,7 @@ public class UserImpl extends BaseDomainHelper implements User {
         */
         @Override
         public Address getAddress() {
-            Address baddr = null;
-            Address addr = null;
-            Address[] addrA = addresses.toArray(new Address[addresses.size()]);
-            if (!addresses.isEmpty()) {
-                for (Address addressIn : addrA) {
-                    if (addressIn.getType().equals(Address.TYPE_MARKETING)) {
-                        addr = addressIn;
-                    }
-                    if (addressIn.getType().equals("B")) {
-                        baddr = addressIn;
-                    }
-                }
-            }
-            if (addr == null) {
-                addr = UserFactory.createAddress();
-                if (baddr != null) {
-                    addr.setAddress1(baddr.getAddress1());
-                    addr.setAddress2(baddr.getAddress2());
-                    addr.setCity(baddr.getCity());
-                    addr.setCountry(baddr.getCountry());
-                    addr.setFax(baddr.getFax());
-                    addr.setIsPoBox(baddr.getIsPoBox());
-                    addr.setPhone(baddr.getPhone());
-                    addr.setState(baddr.getState());
-                    addr.setZip(baddr.getZip());
-                }
-                AddressImpl address = (AddressImpl) addr;
-                address.setUser(UserImpl.this);
-                addresses.add(address);
-            }
-            return addr;
+            return addresses.stream().findFirst().orElse(null);
         }
 
 

@@ -84,7 +84,6 @@ class User:
         self.site["city"] = "."
         self.site["address1"] = "."
         self.site["country"] = "US"
-        self.site["type"] = "M"
         self.site["notes"] = "Entry created by Spacewalk registration process"
 
     def check_password(self, password, allow_read_only=False):
@@ -301,7 +300,7 @@ class User:
             self.__init_perms()
         # The site info is trickier, we need to find it first
         if not self.site.load_sql(
-            "web_user_id = :userid and type = 'M'", {"userid": user_id}
+            "web_user_id = :userid", {"userid": user_id}
         ):
             self.__init_site()
         # Fix the username

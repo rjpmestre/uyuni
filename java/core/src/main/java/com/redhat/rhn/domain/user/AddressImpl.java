@@ -23,7 +23,6 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -48,26 +47,11 @@ public class AddressImpl extends BaseDomainHelper implements Address {
     @Column(length = 128)
     private String email;
 
-    @Column(name = "email_uc", length = 128)
-    private String emailUc;
-
-    @Column(name = "alt_first_names", length = 128)
-    private String altFirstNames;
-
-    @Column(name = "alt_last_name", length = 128)
-    private String altLastName;
-
     @Column(name = "address1", length = 128, nullable = false)
     private String address1 = StringUtils.SPACE;
 
     @Column(name = "address2", length = 128)
     private String address2;
-
-    @Column(name = "address3", length = 128)
-    private String address3;
-
-    @Column(name = "address4", length = 128)
-    private String address4;
 
     @Column(name = "city", length = 128, nullable = false)
     private String city = StringUtils.SPACE;
@@ -87,32 +71,14 @@ public class AddressImpl extends BaseDomainHelper implements Address {
     @Column(length = 32)
     private String fax;
 
-    @Column(length = 128)
-    private String url;
-
-    @Column(name = "is_po_box", length = 1)
-    private String isPoBox = "0";
-
-    @Column(name = "type", length = 1, nullable = false)
-    @Convert(converter = AddressTypeConverter.class)
-    private AddressType type = AddressType.ADDRESS_TYPE_MARKETING;
-
     @ManyToOne
     @JoinColumn(name = "web_user_id")
     private UserImpl user;
 
-    // JPA requires default constructor
-    protected AddressImpl() {
-        this.address1 = " ";
-        this.address2 = " ";
-        this.city = " ";
-        this.state = " ";
-        this.zip = " ";
-        this.country = " ";
-        this.phone = " ";
-        this.fax = " ";
-        this.isPoBox = "0";
-        this.privType = TYPE_MARKETING;
+    /**
+     * Default constructor
+     */
+    public AddressImpl() {
     }
 
     /**
@@ -145,58 +111,11 @@ public class AddressImpl extends BaseDomainHelper implements Address {
 
     /**
      * Setter for email.
-     * Also updates the normalized lowercase value in {@code emailUc}.
      *
      * @param emailIn email address
      */
     public void setEmail(String emailIn) {
         email = emailIn;
-        emailUc = emailIn != null ? emailIn.toLowerCase() : null;
-    }
-
-    /**
-     * Getter for normalized email (lowercase).
-     *
-     * @return normalized email value
-     */
-    public String getEmailUc() {
-        return emailUc;
-    }
-
-    /**
-     * Getter for alternate first names.
-     *
-     * @return alternate first names
-     */
-    public String getAltFirstNames() {
-        return altFirstNames;
-    }
-
-    /**
-     * Setter for alternate first names.
-     *
-     * @param altFirstNamesIn alternate first names value
-     */
-    public void setAltFirstNames(String altFirstNamesIn) {
-        altFirstNames = altFirstNamesIn;
-    }
-
-    /**
-     * Getter for alternate last name.
-     *
-     * @return alternate last name
-     */
-    public String getAltLastName() {
-        return altLastName;
-    }
-
-    /**
-     * Setter for alternate last name.
-     *
-     * @param altLastNameIn alternate last name value
-     */
-    public void setAltLastName(String altLastNameIn) {
-        altLastName = altLastNameIn;
     }
 
     /** {@inheritDoc} */
@@ -221,42 +140,6 @@ public class AddressImpl extends BaseDomainHelper implements Address {
     @Override
     public void setAddress2(String address2In) {
         address2 = address2In;
-    }
-
-    /**
-     * Getter for the third address line.
-     *
-     * @return third address line
-     */
-    public String getAddress3() {
-        return address3;
-    }
-
-    /**
-     * Setter for the third address line.
-     *
-     * @param address3In third address line value
-     */
-    public void setAddress3(String address3In) {
-        address3 = address3In;
-    }
-
-    /**
-     * Getter for the fourth address line.
-     *
-     * @return fourth address line
-     */
-    public String getAddress4() {
-        return address4;
-    }
-
-    /**
-     * Setter for the fourth address line.
-     *
-     * @param address4In fourth address line value
-     */
-    public void setAddress4(String address4In) {
-        address4 = address4In;
     }
 
     /** {@inheritDoc} */
@@ -331,48 +214,6 @@ public class AddressImpl extends BaseDomainHelper implements Address {
         fax = faxIn;
     }
 
-    /**
-     * Getter for URL.
-     *
-     * @return URL value
-     */
-    public String getUrl() {
-        return url;
-    }
-
-    /**
-     * Setter for URL.
-     *
-     * @param urlIn URL value
-     */
-    public void setUrl(String urlIn) {
-        url = urlIn;
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public String getIsPoBox() {
-        return isPoBox;
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public void setIsPoBox(String isPoBoxIn) {
-        isPoBox = isPoBoxIn;
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public AddressType getType() {
-        return type;
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public void setType(AddressType typeIn) {
-        type = typeIn;
-    }
-
     /** {@inheritDoc} */
     @Override
     public User getUser() {
@@ -403,7 +244,6 @@ public class AddressImpl extends BaseDomainHelper implements Address {
                 .append(getState(), otherAddr.getState())
                 .append(getZip(), otherAddr.getZip())
                 .append(getCountry(), otherAddr.getCountry())
-                .append(getType(), otherAddr.getType())
                 .isEquals();
     }
 
@@ -421,7 +261,6 @@ public class AddressImpl extends BaseDomainHelper implements Address {
                 .append(getState())
                 .append(getZip())
                 .append(getCountry())
-                .append(getType())
                 .toHashCode();
     }
 
@@ -431,7 +270,7 @@ public class AddressImpl extends BaseDomainHelper implements Address {
      */
     @Override
     public String toString() {
-        return "{ID: " + getId() + ", type: " + getType() + ", created: " + getCreated() +
+        return "{ID: " + getId() + ", created: " + getCreated() +
                 ", modified: " + getModified() + ", address1: " + getAddress1() +
                 ", city: " + getCity() + ", country: " + getCountry() + "}";
     }

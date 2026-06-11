@@ -74,10 +74,6 @@ public class EditAddressAction extends RhnAction {
                     ls.getMessage("lookup.jsp.reason1.user"),
                     ls.getMessage("lookup.jsp.reason2.user"));
         }
-        String addrType = (String) form.get("type");
-        if (addrType == null) {
-            throw new IllegalArgumentException("Invalid type");
-        }
 
         targetUser.setPhone((String) form.get("phone"));
         targetUser.setFax((String) form.get("fax"));
@@ -93,7 +89,6 @@ public class EditAddressAction extends RhnAction {
         ActionForward base = mapping.findForward("success");
         Map<String, Object> params = new HashMap<>();
         params.put("uid", String.valueOf(targetUser.getId()));
-        params.put("type", addrType);
 
         String newPath = ServletUtils.pathWithParams(base.getPath(), params);
 
